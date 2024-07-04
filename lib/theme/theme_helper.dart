@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:emmet/core/utils/size_utils.dart';
 
@@ -86,6 +85,11 @@ class ThemeHelper {
         thickness: 3,
         space: 3,
         color: colorScheme.onPrimaryContainer,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: appTheme.yellow800, // Example custom background color
+        contentTextStyle: TextStyle(color: Colors.white), // Example text color
+        // You can customize other properties like elevation, shape, etc.
       ),
     );
   }

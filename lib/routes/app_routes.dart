@@ -7,7 +7,6 @@ import '../presentation/explore_screen/explore_screen.dart';
 import '../presentation/build_screen/build_screen.dart';
 import '../presentation/captures_screen/captures_screen.dart';
 import '../presentation/settings_screen/settings_screen.dart';
-import '../presentation/app_navigation_screen/app_navigation_screen.dart';
 
 class AppRoutes {
   static const String splashScreen = '/splash_screen';
@@ -37,6 +36,5 @@ class AppRoutes {
     buildScreen: (context) => BuildScreen(),
     capturesScreen: (context) => CapturesScreen(),
     settingsScreen: (context) => SettingsScreen(),
-    appNavigationScreen: (context) => AppNavigationScreen()
   };
 }

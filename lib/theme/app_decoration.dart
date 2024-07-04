@@ -55,7 +55,7 @@ class AppDecoration {
             blurRadius: 2.h,
             offset: Offset(
               0,
-              11.87,
+              4,
             ),
           ),
         ],

@@ -2,8 +2,6 @@ import 'package:emmet/widgets/app_bar/custom_app_bar.dart';
 import 'package:emmet/widgets/app_bar/appbar_leading_image.dart';
 import 'package:emmet/widgets/app_bar/appbar_title.dart';
 import 'package:emmet/widgets/app_bar/appbar_subtitle.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:emmet/core/app_export.dart';
 
@@ -11,31 +9,59 @@ import 'package:emmet/core/app_export.dart';
 class BuildScreen extends StatelessWidget {
   BuildScreen({Key? key}) : super(key: key);
 
-  Completer<GoogleMapController> googleMapController = Completer();
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
         child: Scaffold(
             appBar: _buildAppBar(context),
-            body: SizedBox(
-                height: 580.v,
-                width: double.maxFinite,
-                child: GoogleMap(
-                    mapType: MapType.normal,
-                    initialCameraPosition: CameraPosition(
-                        target: LatLng(37.43296265331129, -122.08832357078792),
-                        zoom: 14.4746),
-                    onMapCreated: (GoogleMapController controller) {
-                      googleMapController.complete(controller);
-                    },
-                    zoomControlsEnabled: false,
-                    zoomGesturesEnabled: false,
-                    myLocationButtonEnabled: false,
-                    myLocationEnabled: false))));
+            body: Column(
+              children: [
+                Expanded(
+                  child: Positioned.fill(
+                    child: CustomImageView(imagePath: ImageConstant.imgCamera),
+                  ),
+                ),
+                Expanded(
+                  child: Container(
+                    child: PageView(
+                      children: [
+                        CustomImageView(imagePath: ImageConstant.imgMedia), // replace with your images
+                        CustomImageView(imagePath: ImageConstant.imgMedia),
+                        CustomImageView(imagePath: ImageConstant.imgMedia),
+                      ],
+                    ),
+                  ),
+                ),
+                Container(
+                  height: 70.v,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: List.generate(5, (index) {
+                      return Container(
+                        width: 100.h,
+                        margin: EdgeInsets.all(8.0),
+                        decoration: BoxDecoration(
+                          color: Colors.grey,
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Part ${index + 1}',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16.0,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ],
+            )));
   }
 
-  /// Section Widget
+  /// TopBar
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return CustomAppBar(
         leadingWidth: 54.h,
@@ -59,3 +85,4 @@ class BuildScreen extends StatelessWidget {
     Navigator.pop(context);
   }
 }
+

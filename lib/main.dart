@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/scheduler.dart';
 import 'core/app_export.dart';
 
 var globalMessengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -22,7 +21,7 @@ class MyApp extends StatelessWidget {
       builder: (context, orientation, deviceType) {
         return MaterialApp(
           theme: theme,
-          title: 'emmet',
+          title: 'EMMET',
           debugShowCheckedModeBanner: false,
           initialRoute: AppRoutes.splashScreen,
           routes: AppRoutes.routes,
