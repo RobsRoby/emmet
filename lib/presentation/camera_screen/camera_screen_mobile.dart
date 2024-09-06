@@ -1,6 +1,12 @@
+// camera_screen_mobile.dart
+// ignore_for_file: unnecessary_null_comparison
+
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:emmet/core/app_export.dart';
+import 'package:tflite_flutter/tflite_flutter.dart' as tfl;
+import 'dart:typed_data';
+import 'package:image/image.dart' as img;
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({Key? key}) : super(key: key);
@@ -14,30 +20,40 @@ class _CameraScreenState extends State<CameraScreen> {
   late Future<void> _initializeControllerFuture;
   late List<CameraDescription> _cameras;
   bool _isRearCameraSelected = true;
+  late tfl.Interpreter _interpreter;
 
   @override
   void initState() {
     super.initState();
     _initializeCamera();
+    _loadModel();
   }
 
   Future<void> _initializeCamera() async {
-    // Obtain a list of the available cameras on the device.
     _cameras = await availableCameras();
     _cameraController = CameraController(
       _cameras.first,
       ResolutionPreset.high,
-      enableAudio: false, // Disable audio
+      enableAudio: false,
     );
-
-    // Initialize the controller and store the Future for later use.
     _initializeControllerFuture = _cameraController.initialize();
     setState(() {});
+  }
+
+  // Load the YOLOv7 TFLite model
+  Future<void> _loadModel() async {
+    try {
+      _interpreter = await tfl.Interpreter.fromAsset(ModelConstant.yoloV7);
+      print('Model loaded successfully');
+    } catch (e) {
+      print('Error loading model: $e');
+    }
   }
 
   @override
   void dispose() {
     _cameraController.dispose();
+    _interpreter.close();
     super.dispose();
   }
 
@@ -61,7 +77,6 @@ class _CameraScreenState extends State<CameraScreen> {
       child: Scaffold(
         extendBody: true,
         extendBodyBehindAppBar: true,
-        // ignore: unnecessary_null_comparison
         body: _initializeControllerFuture == null
             ? Center(child: CircularProgressIndicator())
             : FutureBuilder<void>(
@@ -104,7 +119,7 @@ class _CameraScreenState extends State<CameraScreen> {
                           ),
                           child: GestureDetector(
                             onTap: () async {
-                              await onTapDetectBricks(context);
+                              await _detectBricks();
                             },
                             child: Container(
                               padding: EdgeInsets.symmetric(
@@ -140,6 +155,46 @@ class _CameraScreenState extends State<CameraScreen> {
     );
   }
 
+  // Detect bricks using the YOLOv7 model
+  Future<void> _detectBricks() async {
+    try {
+      await _initializeControllerFuture;
+      final image = await _cameraController.takePicture();
+      img.Image imageInput = img.decodeImage(await image.readAsBytes())!;
+
+      // Resize the image to the input size of the YOLOv7 model
+      img.Image resizedImage = img.copyResize(imageInput, width: 640, height: 640);
+      Uint8List input = _imageToByteList(resizedImage);
+
+      // Allocate input and output buffers
+      var output = List.generate(1, (index) => List.filled(25200 * 7, 0.0));
+
+      // Run inference
+      _interpreter.run(input, output);
+
+      // Process and display the results (bounding boxes)
+      // TODO: Parse the output and draw bounding boxes on the camera preview
+
+      print("Inference completed!");
+    } catch (e) {
+      print("Error detecting bricks: $e");
+    }
+  }
+
+  Uint8List _imageToByteList(img.Image image) {
+    var buffer = Uint8List(640 * 640 * 3);
+    int index = 0;
+    for (int y = 0; y < 640; y++) {
+      for (int x = 0; x < 640; x++) {
+        var pixel = image.getPixel(x, y);
+        buffer[index++] = img.getRed(pixel);
+        buffer[index++] = img.getGreen(pixel);
+        buffer[index++] = img.getBlue(pixel);
+      }
+    }
+    return buffer;
+  }
+
   /// Section Widget
   Widget _buildTopBar(BuildContext context) {
     return Padding(
@@ -171,16 +226,5 @@ class _CameraScreenState extends State<CameraScreen> {
   /// Navigates to the homeScreen when the action is triggered.
   void onTapCloseButton(BuildContext context) {
     Navigator.pushNamed(context, AppRoutes.homeScreen);
-  }
-
-  /// Captures the image and navigates to the exploreScreen when the action is triggered.
-  Future<void> onTapDetectBricks(BuildContext context) async {
-    try {
-      await _initializeControllerFuture;
-      final image = await _cameraController.takePicture();
-      Navigator.pushReplacementNamed(context, AppRoutes.exploreScreen, arguments: image.path);
-    } catch (e) {
-      print(e);
-    }
   }
 }

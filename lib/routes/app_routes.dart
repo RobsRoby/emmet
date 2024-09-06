@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../presentation/splash_screen/splash_screen.dart';
 import '../presentation/permission_screen/permission_screen.dart';
 import '../presentation/home_screen/home_screen.dart';
-import '../presentation/camera_screen/camera_screen.dart';
+import '../presentation/camera_screen/camera_screen_mobile.dart' if (dart.library.html) '../presentation/camera_screen/camera_screen_web.dart';
 import '../presentation/explore_screen/explore_screen.dart';
 import '../presentation/build_screen/build_screen.dart';
 import '../presentation/captures_screen/captures_screen.dart';
