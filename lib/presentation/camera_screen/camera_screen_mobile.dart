@@ -1,41 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:flutter_vision/flutter_vision.dart';
 import 'package:emmet/core/app_export.dart';
-import 'package:tflite_flutter/tflite_flutter.dart' as tfl;
-import 'dart:typed_data';
-import 'package:image/image.dart' as img;
-import 'dart:async';
-
-// BoundingBoxPainter class to draw bounding boxes
-class BoundingBoxPainter extends CustomPainter {
-  final List<Rect> boxes;
-
-  BoundingBoxPainter(this.boxes);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.green
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-
-    for (Rect box in boxes) {
-      // Scale the bounding box to fit the screen size (assuming 640x640 input for YOLOv7)
-      final scaledBox = Rect.fromLTRB(
-        box.left * size.width,
-        box.top * size.height,
-        box.right * size.width,
-        box.bottom * size.height,
-      );
-      canvas.drawRect(scaledBox, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
-  }
-}
+import 'dart:io';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({Key? key}) : super(key: key);
@@ -48,11 +15,11 @@ class _CameraScreenState extends State<CameraScreen> {
   late CameraController _cameraController;
   late Future<void> _initializeControllerFuture;
   late List<CameraDescription> _cameras;
+  CameraImage? _cameraImage;
+  List<Map<String, dynamic>>? _recognitionsList;
   bool _isRearCameraSelected = true;
-  late tfl.Interpreter _interpreter;
-  bool _isDetecting = false;
-  int _brickCount = 0;
-  List<Rect> _boundingBoxes = [];
+
+  FlutterVision vision = FlutterVision();
 
   @override
   void initState() {
@@ -65,34 +32,140 @@ class _CameraScreenState extends State<CameraScreen> {
     _cameras = await availableCameras();
     _cameraController = CameraController(
       _cameras.first,
-      ResolutionPreset.high,
+      ResolutionPreset.medium,
       enableAudio: false,
     );
+
     _initializeControllerFuture = _cameraController.initialize().then((_) {
-      _cameraController.startImageStream((image) {
-        if (!_isDetecting) {
-          _isDetecting = true;
-          _runObjectDetection(image);
-        }
+      if (!mounted) return;
+      setState(() {});
+      _cameraController.startImageStream((CameraImage image) {
+        _cameraImage = image;
+        _runModel();
       });
     });
-    setState(() {});
   }
 
   Future<void> _loadModel() async {
-    try {
-      _interpreter = await tfl.Interpreter.fromAsset(GetModel.modelPath);
-      print('Model loaded successfully');
-    } catch (e) {
-      print('Error loading model: $e');
-    }
+    int numThreads = Platform.numberOfProcessors;
+
+    await vision.loadYoloModel(
+      labels: GetModel.labelsPath,
+      modelPath: GetModel.modelPath,
+      modelVersion: "yolov8",
+      quantization: false,
+      numThreads: numThreads,
+      useGpu: true,
+    );
   }
+
+  int bufferSize = 2;
+  List<List<Map<String, dynamic>>> _detectionBuffer = [];
+
+  Future<void> _runModel() async {
+    if (_cameraImage == null) return;
+
+    final result = await vision.yoloOnFrame(
+      bytesList: _cameraImage!.planes.map((plane) => plane.bytes).toList(),
+      imageHeight: _cameraImage!.height,
+      imageWidth: _cameraImage!.width,
+      iouThreshold: 0.2,
+      confThreshold: 0.2,
+      classThreshold: 0.2,
+    );
+
+    setState(() {
+      _detectionBuffer.add(result);
+      if (_detectionBuffer.length > bufferSize) {
+        _detectionBuffer.removeAt(0);
+      }
+      _recognitionsList = _getStableDetections();
+    });
+  }
+
+  List<Map<String, dynamic>> _getStableDetections() {
+    final Map<String, List<Map<String, dynamic>>> accumulations = {};
+
+    for (var frame in _detectionBuffer) {
+      for (var detection in frame) {
+        final tag = detection["tag"];
+        if (accumulations.containsKey(tag)) {
+          accumulations[tag]!.add(detection);
+        } else {
+          accumulations[tag] = [detection];
+        }
+      }
+    }
+
+    return accumulations.entries
+        .where((entry) => entry.value.length >= (bufferSize / 2))
+        .map((entry) {
+      final detections = entry.value;
+      // Compute a weighted average of box coordinates based on confidence
+      double totalConfidence = 0.0;
+      double avgX1 = 0, avgY1 = 0, avgX2 = 0, avgY2 = 0;
+      for (var det in detections) {
+        double conf = det['box'][4];
+        avgX1 += det['box'][0] * conf;
+        avgY1 += det['box'][1] * conf;
+        avgX2 += det['box'][2] * conf;
+        avgY2 += det['box'][3] * conf;
+        totalConfidence += conf;
+      }
+      avgX1 /= totalConfidence;
+      avgY1 /= totalConfidence;
+      avgX2 /= totalConfidence;
+      avgY2 /= totalConfidence;
+
+      // Return the stable detection with averaged box coordinates
+      return {
+        'tag': entry.key,
+        'box': [avgX1, avgY1, avgX2, avgY2, totalConfidence / detections.length],
+      };
+    }).toList();
+  }
+
 
   @override
   void dispose() {
+    _cameraController.stopImageStream();
     _cameraController.dispose();
-    _interpreter.close();
+    vision.closeYoloModel();
     super.dispose();
+  }
+
+  List<Widget> _displayBoxesAroundRecognizedObjects(Size screen) {
+    if (_recognitionsList == null) return [];
+
+    final double factorX = screen.width / _cameraController.value.previewSize!.height;
+    final double factorY = screen.height / _cameraController.value.previewSize!.width;
+
+    return _recognitionsList!.map((result) {
+      final box = result["box"];
+      final tag = result["tag"];
+      final confidence = box[4];
+
+      return Positioned(
+        left: box[0] * factorX,
+        top: box[1] * factorY,
+        width: (box[2] - box[0]) * factorX,
+        height: (box[3] - box[1]) * factorY,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.all(Radius.circular(10.0)),
+            border: Border.all(color: Colors.pink, width: 2.0),
+          ),
+          child: Text(
+            "$tag ${(confidence * 100).toStringAsFixed(0)}%",
+            style: TextStyle(
+              background: Paint()..color = Colors.pink,
+              color: Colors.black,
+              fontSize: 18.0,
+            ),
+          ),
+        ),
+      );
+    }).toList();
   }
 
   void _flipCamera() async {
@@ -101,111 +174,19 @@ class _CameraScreenState extends State<CameraScreen> {
       final camera = _isRearCameraSelected ? _cameras.first : _cameras.last;
       _cameraController = CameraController(
         camera,
-        ResolutionPreset.high,
+        ResolutionPreset.medium,
         enableAudio: false,
       );
-      _initializeControllerFuture = _cameraController.initialize();
+      _initializeControllerFuture = _cameraController.initialize().then((_) {
+        if (!mounted) return;
+        setState(() {});
+        _cameraController.startImageStream((CameraImage image) {
+          _cameraImage = image;
+          _runModel();
+        });
+      });
       setState(() {});
     }
-  }
-
-  Future<void> _runObjectDetection(CameraImage cameraImage) async {
-    try {
-      final img.Image imageInput = _convertCameraImage(cameraImage);
-      final img.Image resizedImage = img.copyResize(imageInput, width: 640, height: 640);
-      Uint8List input = _imageToByteList(resizedImage);
-
-      var output = List.generate(1, (index) => List.filled(25200 * 7, 0.0));
-
-      _interpreter.run(input, output);
-
-      final List<Rect> boxes = [];
-      final brickCount = _processOutput(output, boxes);
-
-      setState(() {
-        _brickCount = brickCount;
-        _boundingBoxes = boxes;
-      });
-
-      _isDetecting = false;
-    } catch (e) {
-      print("Error detecting bricks: $e");
-      _isDetecting = false;
-    }
-  }
-
-  img.Image _convertCameraImage(CameraImage cameraImage) {
-    final int width = cameraImage.width;
-    final int height = cameraImage.height;
-
-    final Uint8List yPlane = cameraImage.planes[0].bytes;
-    final Uint8List uPlane = cameraImage.planes[1].bytes;
-    final Uint8List vPlane = cameraImage.planes[2].bytes;
-
-    final int yRowStride = cameraImage.planes[0].bytesPerRow;
-    final int uvRowStride = cameraImage.planes[1].bytesPerRow;
-    final int uvPixelStride = cameraImage.planes[1].bytesPerPixel!;
-
-    img.Image imgRGB = img.Image(width, height);
-
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        final int uvIndex = (y ~/ 2) * uvRowStride + (x ~/ 2) * uvPixelStride;
-        final int indexY = y * yRowStride + x;
-
-        final int yValue = yPlane[indexY];
-        final int uValue = uPlane[uvIndex] - 128;
-        final int vValue = vPlane[uvIndex] - 128;
-
-        final int r = (yValue + 1.402 * vValue).clamp(0, 255).toInt();
-        final int g = (yValue - 0.344136 * uValue - 0.714136 * vValue).clamp(0, 255).toInt();
-        final int b = (yValue + 1.772 * uValue).clamp(0, 255).toInt();
-
-        imgRGB.setPixel(x, y, img.getColor(r, g, b));
-      }
-    }
-
-    return imgRGB;
-  }
-
-  Uint8List _imageToByteList(img.Image image) {
-    var buffer = Uint8List(640 * 640 * 3);
-    int index = 0;
-    for (int y = 0; y < 640; y++) {
-      for (int x = 0; x < 640; x++) {
-        var pixel = image.getPixel(x, y);
-        buffer[index++] = img.getRed(pixel);
-        buffer[index++] = img.getGreen(pixel);
-        buffer[index++] = img.getBlue(pixel);
-      }
-    }
-    return buffer;
-  }
-
-  int _processOutput(List<List<double>> output, List<Rect> boxes) {
-    int count = 0;
-    List<double> detections = output[0];
-
-    for (int i = 0; i < detections.length; i += 7) {
-      double confidence = detections[i + 4];
-
-      if (confidence > 0.5) {
-        count++;
-
-        double x_center = detections[i];
-        double y_center = detections[i + 1];
-        double width = detections[i + 2];
-        double height = detections[i + 3];
-
-        double left = x_center - width / 2;
-        double top = y_center - height / 2;
-        Rect boundingBox = Rect.fromLTWH(left, top, width, height);
-
-        boxes.add(boundingBox);
-      }
-    }
-
-    return count;
   }
 
   @override
@@ -226,10 +207,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   Positioned.fill(
                     child: CameraPreview(_cameraController),
                   ),
-                  CustomPaint(
-                    painter: BoundingBoxPainter(_boundingBoxes),
-                    child: Container(),
-                  ),
+                  ..._displayBoxesAroundRecognizedObjects(MediaQuery.of(context).size),
                   Container(
                     width: double.infinity,
                     padding: EdgeInsets.symmetric(horizontal: 24.h, vertical: 30.v),
@@ -246,8 +224,8 @@ class _CameraScreenState extends State<CameraScreen> {
                         SizedBox(
                           width: 164.h,
                           child: Text(
-                            "Detected Bricks: $_brickCount",
-                            maxLines: 1,
+                            "Press the capture button to freeze the current frame and analyze the LEGO bricks present.",
+                            maxLines: 3,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
                             style: CustomTextStyles.labelMedium10_1,
@@ -261,7 +239,7 @@ class _CameraScreenState extends State<CameraScreen> {
                           ),
                           child: GestureDetector(
                             onTap: () async {
-                              // No need for manual capture button anymore since detection is real-time
+                              await onTapDetectBricks(context);
                             },
                             child: Container(
                               padding: EdgeInsets.symmetric(
@@ -274,7 +252,7 @@ class _CameraScreenState extends State<CameraScreen> {
                               child: Column(
                                 children: [
                                   Text(
-                                    "Detecting...",
+                                    "Capture",
                                     style: CustomTextStyles.titleLargeOnPrimary,
                                   ),
                                 ],
@@ -327,4 +305,72 @@ class _CameraScreenState extends State<CameraScreen> {
   void onTapCloseButton(BuildContext context) {
     Navigator.pushNamed(context, AppRoutes.homeScreen);
   }
+
+  bool _isCapturing = false; // Flag to manage capture operations
+
+  Future<void> onTapDetectBricks(BuildContext context) async {
+    if (_isCapturing) return;
+    _isCapturing = true;
+
+    try {
+      // Show loading spinner
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return Center(
+            child: CircularProgressIndicator(),
+          );
+        },
+      );
+
+      // Ensure the camera is ready
+      await _initializeControllerFuture;
+      if (!_cameraController.value.isInitialized) {
+        Navigator.of(context).pop();
+        throw Exception("Camera initialization not complete or controller not ready.");
+      }
+
+      // Stop image stream before capturing
+      await _cameraController.stopImageStream();
+
+      // Capture the image
+      XFile imageFile = await _cameraController.takePicture();
+
+      // Load image as bytes
+      final bytes = await imageFile.readAsBytes();
+
+      // Convert to CameraImage equivalent for dimensions if necessary
+      final decodedImage = await decodeImageFromList(bytes);
+      final imageHeight = decodedImage.height;
+      final imageWidth = decodedImage.width;
+
+      // Run inference on the captured image
+      final result = await vision.yoloOnImage(
+        bytesList: bytes,               // Pass the captured image bytes
+        imageHeight: imageHeight,         // Correct height from the decoded image
+        imageWidth: imageWidth,           // Correct width from the decoded image
+        iouThreshold: 0.8,                // Set the IoU threshold
+        confThreshold: 0.4,               // Set the confidence threshold
+        classThreshold: 0.7,              // Set the class probability threshold
+      );
+
+      // Extract recognized tags
+      List<String> recognizedTags = result.map((detection) => detection['tag'].toString()).toList();
+
+      // Handle recognized tags
+      Navigator.of(context).pop(); // Close loading dialog
+      Navigator.pushReplacementNamed(
+        context,
+        AppRoutes.exploreScreen,
+        arguments: recognizedTags,  // Pass recognized tags
+      );
+    } catch (e) {
+      Navigator.of(context).pop();
+      print("Error during image inference: $e");
+    } finally {
+      _isCapturing = false;
+    }
+  }
+
 }

@@ -22,7 +22,9 @@ class _SplashScreenState extends State<SplashScreen> {
     var status = await Permission.camera.status;
     if (status.isGranted) {
       // If permission is granted, navigate to home screen
-      navigateToHome();
+      Timer(Duration(seconds: 3), () {
+        navigateToHome();
+      });
     } else {
       // If permission is not granted, navigate to permission screen
       Timer(Duration(seconds: 3), () {
