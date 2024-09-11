@@ -3,6 +3,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter_vision/flutter_vision.dart';
 import 'package:emmet/core/app_export.dart';
 import 'dart:io';
+import 'dart:math';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({Key? key}) : super(key: key);
@@ -21,6 +22,18 @@ class _CameraScreenState extends State<CameraScreen> {
   bool isDetecting = false;
 
   FlutterVision vision = FlutterVision();
+
+  Map<String, Color> _classColors = {};  // Map to store colors for each class
+
+  Color _getRandomColor() {
+    Random random = Random();
+    return Color.fromRGBO(
+      random.nextInt(256), // Red
+      random.nextInt(256), // Green
+      random.nextInt(256), // Blue
+      1.0,  // Opacity
+    );
+  }
 
   @override
   void initState() {
@@ -101,6 +114,13 @@ class _CameraScreenState extends State<CameraScreen> {
       final tag = result["tag"];
       final confidence = box[4];
 
+      // Assign a color if the class doesn't have one yet
+      if (!_classColors.containsKey(tag)) {
+        _classColors[tag] = _getRandomColor();
+      }
+
+      final Color boxColor = _classColors[tag]!; // Retrieve the color for the current class
+
       return Positioned(
         left: box[0] * factorX,
         top: box[1] * factorY,
@@ -109,12 +129,12 @@ class _CameraScreenState extends State<CameraScreen> {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.all(Radius.circular(10.0)),
-            border: Border.all(color: Colors.pink, width: 2.0),
+            border: Border.all(color: boxColor, width: 2.0), // Use the randomized color
           ),
           child: Text(
             "$tag ${(confidence * 100).toStringAsFixed(0)}%",
             style: TextStyle(
-              background: Paint()..color = Colors.pink,
+              background: Paint()..color = boxColor, // Match text background with box color
               color: Colors.black,
               fontSize: 18.0,
             ),
