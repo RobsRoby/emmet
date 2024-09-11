@@ -25,6 +25,8 @@ class _CameraScreenState extends State<CameraScreen> {
 
   Map<String, Color> _classColors = {};  // Map to store colors for each class
 
+  int _detectedClassCount = 0;
+
   Color _getRandomColor() {
     Random random = Random();
     return Color.fromRGBO(
@@ -83,12 +85,14 @@ class _CameraScreenState extends State<CameraScreen> {
         bytesList: _cameraImage!.planes.map((plane) => plane.bytes).toList(),
         imageHeight: _cameraImage!.height,
         imageWidth: _cameraImage!.width,
-        iouThreshold: 0.5,  // Adjust based on your stability needs
-        confThreshold: 0.5, // Adjust for confidence threshold
+        iouThreshold: 0.4,  // Adjust based on your stability needs
+        confThreshold: 0.4, // Adjust for confidence threshold
+        classThreshold: 0.4, // Adjust for class probability threshold
       );
 
       setState(() {
         _recognitionsList = result;  // Store detection results
+        _detectedClassCount = result.length; // Update detected class count
       });
     } finally {
       isDetecting = false; // Release flag after detection completes
@@ -200,7 +204,9 @@ class _CameraScreenState extends State<CameraScreen> {
                         SizedBox(
                           width: 164.h,
                           child: Text(
-                            "Press the capture button to freeze the current frame and analyze the LEGO bricks present.",
+                            _detectedClassCount > 0
+                                ? "Detected $_detectedClassCount LEGO bricks."
+                                : "Press the capture button to freeze the current frame and analyze the LEGO bricks present.",
                             maxLines: 3,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
@@ -214,15 +220,16 @@ class _CameraScreenState extends State<CameraScreen> {
                             borderRadius: BorderRadiusStyle.roundedBorder23,
                           ),
                           child: GestureDetector(
-                            onTap: () async {
+                            onTap: _detectedClassCount > 0 ? () async {
                               await onTapDetectBricks(context);
-                            },
+                            } : null,
                             child: Container(
                               padding: EdgeInsets.symmetric(
                                 horizontal: 60.h,
                                 vertical: 10.v,
                               ),
-                              decoration: AppDecoration.fillPrimary.copyWith(
+                              decoration: BoxDecoration(
+                                color: _detectedClassCount > 0 ? theme.colorScheme.primary : Colors.grey, // Gray background when disabled
                                 borderRadius: BorderRadiusStyle.roundedBorder23,
                               ),
                               child: Column(
@@ -288,12 +295,17 @@ class _CameraScreenState extends State<CameraScreen> {
     if (_isCapturing) return;
     _isCapturing = true;
 
+    late BuildContext loadingDialogContext;
+    late BuildContext alertDialogContext;
+
     try {
       // Show loading spinner
-      showDialog(
+      // ignore: unused_local_variable
+      final loadingDialogFuture = showDialog(
         context: context,
         barrierDismissible: false,
         builder: (BuildContext context) {
+          loadingDialogContext = context;
           return Center(
             child: CircularProgressIndicator(),
           );
@@ -326,23 +338,51 @@ class _CameraScreenState extends State<CameraScreen> {
         bytesList: bytes,               // Pass the captured image bytes
         imageHeight: imageHeight,         // Correct height from the decoded image
         imageWidth: imageWidth,           // Correct width from the decoded image
-        iouThreshold: 0.8,                // Set the IoU threshold
+        iouThreshold: 0.4,                // Set the IoU threshold
         confThreshold: 0.4,               // Set the confidence threshold
-        classThreshold: 0.7,              // Set the class probability threshold
+        classThreshold: 0.4,              // Set the class probability threshold
       );
 
       // Extract recognized tags
       List<String> recognizedTags = result.map((detection) => detection['tag'].toString()).toList();
 
-      // Handle recognized tags
-      Navigator.of(context).pop(); // Close loading dialog
-      Navigator.pushReplacementNamed(
-        context,
-        AppRoutes.exploreScreen,
-        arguments: recognizedTags,  // Pass recognized tags
-      );
+      if (recognizedTags.isEmpty) {
+        // Show alert dialog if no bricks are detected
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            alertDialogContext = context;
+            return AlertDialog(
+              title: Text("No Bricks Detected"),
+              content: Text("No LEGO bricks were detected in the captured image. Please try again."),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(alertDialogContext).pop(); // Close the alert dialog
+                    Navigator.of(loadingDialogContext).pop(); // Close the loading spinner
+                    _cameraController.startImageStream((CameraImage image) {
+                      _cameraImage = image;
+                      _runModel();
+                    });
+                  },
+                  child: Text("OK"),
+                ),
+              ],
+            );
+          },
+        );
+      } else {
+        // Dismiss the loading spinner dialog
+        Navigator.of(loadingDialogContext).pop();
+        // Handle recognized tags
+        Navigator.pushReplacementNamed(
+          context,
+          AppRoutes.exploreScreen,
+          arguments: recognizedTags,  // Pass recognized tags
+        );
+      }
     } catch (e) {
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(); // Dismiss the loading spinner if an error occurs
       print("Error during image inference: $e");
     } finally {
       _isCapturing = false;
@@ -350,3 +390,5 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
 }
+
+

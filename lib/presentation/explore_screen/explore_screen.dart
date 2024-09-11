@@ -7,9 +7,38 @@ import 'package:emmet/widgets/custom_elevated_button.dart';
 import 'package:flutter/material.dart';
 import 'package:emmet/core/app_export.dart';
 
-// ignore_for_file: must_be_immutable
-class ExploreScreen extends StatelessWidget {
-  ExploreScreen({Key? key}) : super(key: key);
+class ExploreScreen extends StatefulWidget {
+  final List<String> recognizedTags;
+
+   const ExploreScreen({Key? key, required this.recognizedTags}) : super(key: key);
+
+  @override
+  _ExploreScreenState createState() => _ExploreScreenState();
+}
+
+class _ExploreScreenState extends State<ExploreScreen> {
+  List<Map<String, dynamic>> _sets = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSets();
+  }
+
+  Future<void> _loadSets() async {
+    DatabaseHelper dbHelper = DatabaseHelper();
+    List<Map<String, dynamic>> sets = await dbHelper.fetchSetsByParts(widget.recognizedTags);
+
+    // Debug print to check fetched sets
+    print("Fetched sets: $sets"); // Check if sets are fetched correctly
+
+    setState(() {
+      _sets = sets;
+    });
+
+    // Debug print after setting state
+    print("State updated with sets: $_sets");
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,9 +52,25 @@ class ExploreScreen extends StatelessWidget {
                     padding: EdgeInsets.only(top: 25.v),
                     child: Container(
                         padding: EdgeInsets.symmetric(horizontal: 20.h),
-                        child: Column(children: [
-                          _buildCard(context),
-                        ]))))));
+                        child: _sets.isEmpty
+                            ? Center(
+                          child: Text(
+                            "No LEGO sets found for the detected bricks.",
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              color: Colors.black, // Customize as needed
+                              fontSize: 16,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                            : Column(
+                          children: _sets
+                              .map((set) => Padding(
+                            padding: EdgeInsets.only(bottom: 16.h), // Space between cards
+                            child: _buildCard(context, set),
+                          ))
+                              .toList(),
+                        ))))));
   }
 
   /// Top Bar
@@ -42,13 +87,13 @@ class ExploreScreen extends StatelessWidget {
         title: Column(children: [
           AppbarTitle(text: "Explore"),
           AppbarSubtitle(
-              text: "215 bricks", margin: EdgeInsets.symmetric(horizontal: 3.h))
+              text: "${widget.recognizedTags.length} bricks", margin: EdgeInsets.symmetric(horizontal: 3.h))
         ]),
         styleType: Style.bgShadow);
   }
 
   /// Save Button
-  Widget _buildSave(BuildContext context) {
+  Widget _buildSave(BuildContext context, String setNum) {
     return CustomOutlinedButton(
         width: 100.h,
         text: "Save",
@@ -59,13 +104,13 @@ class ExploreScreen extends StatelessWidget {
                 height: 24.adaptSize,
                 width: 24.adaptSize)),
         onPressed: () {
-          onTapSave(context);
+          onTapSave(context, setNum);
         }
     );
   }
 
   /// Build Button
-  Widget _buildBuild(BuildContext context) {
+  Widget _buildBuild(BuildContext context, String setNum) {
     return CustomElevatedButton(
         width: 103.h,
         text: "Build",
@@ -77,27 +122,34 @@ class ExploreScreen extends StatelessWidget {
                 height: 24.adaptSize,
                 width: 24.adaptSize)),
         onPressed: () {
-          onTapBuild(context);
+          onTapBuild(context, setNum);
         });
   }
 
   /// LEGO Set Card
-  Widget _buildCard(BuildContext context) {
+  Widget _buildCard(BuildContext context, Map<String, dynamic> set) {
+    print("Building card for set: ${set['name']}"); // Debug print to check set data
     return Container(
       margin: EdgeInsets.all(5.h),
       decoration: AppDecoration.outlineBlack9001
           .copyWith(borderRadius: BorderRadiusStyle.roundedBorder11),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16.0), // Adjust the radius as needed
+        borderRadius: BorderRadius.circular(16.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CustomImageView(imagePath: ImageConstant.imgMedia, height: 189.v),
+            Image.network(
+              set['img_url'],
+              height: 189.0,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Icon(Icons.error),
+            ),
             SizedBox(height: 17.v),
             Padding(
               padding: EdgeInsets.only(left: 15.h),
-              child: Text("An Airplane", style: theme.textTheme.titleSmall),
+              child: Text(set['name'], style: Theme.of(context).textTheme.titleSmall),
             ),
             SizedBox(height: 10.v),
             Align(
@@ -107,8 +159,8 @@ class ExploreScreen extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    _buildSave(context),
-                    _buildBuild(context),
+                    _buildSave(context, set['set_num']),
+                    _buildBuild(context, set['set_num']),
                   ],
                 ),
               ),
@@ -120,20 +172,20 @@ class ExploreScreen extends StatelessWidget {
     );
   }
 
-  onTapBuild(BuildContext context) {
-    Navigator.pushNamed(context, AppRoutes.buildScreen);
+  void onTapBuild(BuildContext context, String setNum) {
+    Navigator.pushNamed(context, AppRoutes.buildScreen, arguments: setNum);
   }
 
-  onTapSave(BuildContext context) {
+  void onTapSave(BuildContext context, String setNum) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('LEGO set saved!'),
+        content: Text('LEGO set $setNum saved!'),
         duration: Duration(seconds: 2),
       ),
     );
   }
 
-  onTapArrowLeft(BuildContext context) {
+  void onTapArrowLeft(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -158,5 +210,4 @@ class ExploreScreen extends StatelessWidget {
       },
     );
   }
-
 }

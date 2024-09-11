@@ -8,3 +8,4 @@ export 'package:emmet/widgets/custom_image_view.dart';
 export '../theme/custom_button_style.dart';
 export 'package:emmet/core/utils/date_time_utils.dart';
 export 'package:emmet/core/utils/model_utils.dart';
+export 'package:emmet/core/utils/database_helper.dart';
