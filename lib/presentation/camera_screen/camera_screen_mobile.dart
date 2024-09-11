@@ -18,6 +18,7 @@ class _CameraScreenState extends State<CameraScreen> {
   CameraImage? _cameraImage;
   List<Map<String, dynamic>>? _recognitionsList;
   bool _isRearCameraSelected = true;
+  bool isDetecting = false;
 
   FlutterVision vision = FlutterVision();
 
@@ -59,72 +60,27 @@ class _CameraScreenState extends State<CameraScreen> {
     );
   }
 
-  int bufferSize = 2;
-  List<List<Map<String, dynamic>>> _detectionBuffer = [];
-
   Future<void> _runModel() async {
-    if (_cameraImage == null) return;
+    if (_cameraImage == null || isDetecting) return;
 
-    final result = await vision.yoloOnFrame(
-      bytesList: _cameraImage!.planes.map((plane) => plane.bytes).toList(),
-      imageHeight: _cameraImage!.height,
-      imageWidth: _cameraImage!.width,
-      iouThreshold: 0.2,
-      confThreshold: 0.2,
-      classThreshold: 0.2,
-    );
+    isDetecting = true; // Set the flag to prevent overlapping detections
 
-    setState(() {
-      _detectionBuffer.add(result);
-      if (_detectionBuffer.length > bufferSize) {
-        _detectionBuffer.removeAt(0);
-      }
-      _recognitionsList = _getStableDetections();
-    });
-  }
+    try {
+      final result = await vision.yoloOnFrame(
+        bytesList: _cameraImage!.planes.map((plane) => plane.bytes).toList(),
+        imageHeight: _cameraImage!.height,
+        imageWidth: _cameraImage!.width,
+        iouThreshold: 0.5,  // Adjust based on your stability needs
+        confThreshold: 0.5, // Adjust for confidence threshold
+      );
 
-  List<Map<String, dynamic>> _getStableDetections() {
-    final Map<String, List<Map<String, dynamic>>> accumulations = {};
-
-    for (var frame in _detectionBuffer) {
-      for (var detection in frame) {
-        final tag = detection["tag"];
-        if (accumulations.containsKey(tag)) {
-          accumulations[tag]!.add(detection);
-        } else {
-          accumulations[tag] = [detection];
-        }
-      }
+      setState(() {
+        _recognitionsList = result;  // Store detection results
+      });
+    } finally {
+      isDetecting = false; // Release flag after detection completes
     }
-
-    return accumulations.entries
-        .where((entry) => entry.value.length >= (bufferSize / 2))
-        .map((entry) {
-      final detections = entry.value;
-      // Compute a weighted average of box coordinates based on confidence
-      double totalConfidence = 0.0;
-      double avgX1 = 0, avgY1 = 0, avgX2 = 0, avgY2 = 0;
-      for (var det in detections) {
-        double conf = det['box'][4];
-        avgX1 += det['box'][0] * conf;
-        avgY1 += det['box'][1] * conf;
-        avgX2 += det['box'][2] * conf;
-        avgY2 += det['box'][3] * conf;
-        totalConfidence += conf;
-      }
-      avgX1 /= totalConfidence;
-      avgY1 /= totalConfidence;
-      avgX2 /= totalConfidence;
-      avgY2 /= totalConfidence;
-
-      // Return the stable detection with averaged box coordinates
-      return {
-        'tag': entry.key,
-        'box': [avgX1, avgY1, avgX2, avgY2, totalConfidence / detections.length],
-      };
-    }).toList();
   }
-
 
   @override
   void dispose() {
