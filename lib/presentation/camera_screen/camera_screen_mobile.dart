@@ -22,6 +22,26 @@ class _CameraScreenState extends State<CameraScreen> {
   bool isDetecting = false;
 
   FlutterVision vision = FlutterVision();
+  UserDatabaseHelper _databaseHelper = UserDatabaseHelper();
+
+  double _iouThreshold = 0.5;
+  double _confThreshold = 0.5;
+  double _classThreshold = 0.5;
+  String _cameraResolution = 'medium';
+
+  Future<void> _loadSettings() async {
+    Map<String, dynamic> settings = await _databaseHelper.getSettings();
+
+    setState(() {
+      _iouThreshold = settings['iouThreshold'] ?? 0.5;
+      _confThreshold = settings['confThreshold'] ?? 0.5;
+      _classThreshold = settings['classThreshold'] ?? 0.5;
+      _cameraResolution = settings['cameraResolution'] ?? 'medium';
+    });
+
+    _initializeCamera();
+    _loadModel();
+  }
 
   Map<String, Color> _classColors = {};  // Map to store colors for each class
 
@@ -40,15 +60,28 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeCamera();
-    _loadModel();
+    _loadSettings();
   }
 
   Future<void> _initializeCamera() async {
     _cameras = await availableCameras();
+    ResolutionPreset resolutionPreset;
+
+    switch (_cameraResolution) {
+      case 'low':
+        resolutionPreset = ResolutionPreset.low;
+        break;
+      case 'high':
+        resolutionPreset = ResolutionPreset.high;
+        break;
+      case 'medium':
+      default:
+        resolutionPreset = ResolutionPreset.medium;
+    }
+
     _cameraController = CameraController(
       _cameras.first,
-      ResolutionPreset.medium,
+      resolutionPreset,
       enableAudio: false,
     );
 
@@ -78,30 +111,42 @@ class _CameraScreenState extends State<CameraScreen> {
   Future<void> _runModel() async {
     if (_cameraImage == null || isDetecting) return;
 
-    isDetecting = true; // Set the flag to prevent overlapping detections
+    isDetecting = true;
 
     try {
       final result = await vision.yoloOnFrame(
         bytesList: _cameraImage!.planes.map((plane) => plane.bytes).toList(),
         imageHeight: _cameraImage!.height,
         imageWidth: _cameraImage!.width,
-        iouThreshold: 0.4,  // Adjust based on your stability needs
-        confThreshold: 0.4, // Adjust for confidence threshold
-        classThreshold: 0.4, // Adjust for class probability threshold
+        iouThreshold: _iouThreshold,
+        confThreshold: _confThreshold,
+        classThreshold: _classThreshold,
       );
 
       setState(() {
-        _recognitionsList = result;  // Store detection results
-        _detectedClassCount = result.length; // Update detected class count
+        _recognitionsList = result;
+        _detectedClassCount = result.length;
       });
     } finally {
-      isDetecting = false; // Release flag after detection completes
+      isDetecting = false;
     }
   }
 
   @override
+  void deactivate() {
+    // Stop the camera stream when the screen is deactivated (e.g., navigating away)
+    if (_cameraController.value.isStreamingImages) {
+      _cameraController.stopImageStream();
+    }
+    super.deactivate();
+  }
+
+  @override
   void dispose() {
-    _cameraController.stopImageStream();
+    // Ensure all resources are released when the widget is disposed
+    if (_cameraController.value.isStreamingImages) {
+      _cameraController.stopImageStream();
+    }
     _cameraController.dispose();
     vision.closeYoloModel();
     super.dispose();
@@ -152,9 +197,22 @@ class _CameraScreenState extends State<CameraScreen> {
     if (_cameras.length > 1) {
       _isRearCameraSelected = !_isRearCameraSelected;
       final camera = _isRearCameraSelected ? _cameras.first : _cameras.last;
+      ResolutionPreset resolutionPreset;
+
+      switch (_cameraResolution) {
+        case 'low':
+          resolutionPreset = ResolutionPreset.low;
+          break;
+        case 'high':
+          resolutionPreset = ResolutionPreset.high;
+          break;
+        case 'medium':
+        default:
+          resolutionPreset = ResolutionPreset.medium;
+      }
       _cameraController = CameraController(
         camera,
-        ResolutionPreset.medium,
+        resolutionPreset,
         enableAudio: false,
       );
       _initializeControllerFuture = _cameraController.initialize().then((_) {
@@ -197,7 +255,9 @@ class _CameraScreenState extends State<CameraScreen> {
                         _buildTopBar(context),
                         Spacer(),
                         CustomImageView(
-                          imagePath: ImageConstant.imgTipsIcon,
+                          imagePath: _detectedClassCount > 0
+                              ? ImageConstant.legoIcon // Use legoIcon when detectedClassCount > 0
+                              : ImageConstant.imgTipsIcon, // Use the default icon otherwise
                           height: 60.adaptSize,
                           width: 60.adaptSize,
                         ),
@@ -338,9 +398,9 @@ class _CameraScreenState extends State<CameraScreen> {
         bytesList: bytes,               // Pass the captured image bytes
         imageHeight: imageHeight,         // Correct height from the decoded image
         imageWidth: imageWidth,           // Correct width from the decoded image
-        iouThreshold: 0.4,                // Set the IoU threshold
-        confThreshold: 0.4,               // Set the confidence threshold
-        classThreshold: 0.4,              // Set the class probability threshold
+        iouThreshold: _iouThreshold,
+        confThreshold: _confThreshold,
+        classThreshold: _classThreshold,
       );
 
       // Extract recognized tags
@@ -390,5 +450,3 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
 }
-
-

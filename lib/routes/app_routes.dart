@@ -26,7 +26,7 @@ class AppRoutes {
     cameraScreen: (context) => CameraScreen(),
     capturesScreen: (context) => CapturesScreen(),
     settingsScreen: (context) => SettingsScreen(),
-    buildScreen: (context) => BuildScreen(),
+    // Remove buildScreen entry from here, it will be handled by onGenerateRoute
   };
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
@@ -37,11 +37,16 @@ class AppRoutes {
           builder: (context) => ExploreScreen(recognizedTags: recognizedTags),
         );
 
+      case buildScreen:
+        final String setNum = settings.arguments as String;
+        return MaterialPageRoute(
+          builder: (context) => BuildScreen(setNum: setNum),
+        );
+
       default:
         return MaterialPageRoute(
           builder: (context) => HomeScreen(),
         );
     }
   }
-
 }

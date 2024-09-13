@@ -58,26 +58,32 @@ class CustomDropDown extends StatelessWidget {
   Widget get dropDownWidget => SizedBox(
     width: width ?? double.maxFinite,
     child: DropdownButtonFormField(
-      focusNode: focusNode ?? FocusNode(),
-      icon: icon,
-      autofocus: autofocus!,
-      style: textStyle ?? CustomTextStyles.bodySmallOnPrimary,
+      isDense: true, // Ensure consistent item height
+      isExpanded: true, // Ensures the dropdown takes full width
+      hint: Text(
+        hintText ?? "",
+        style: CustomTextStyles.bodySmallOnPrimary.copyWith(color: Colors.black),
+        textAlign: TextAlign.center, // Aligns hint to the center
+      ),
       items: items?.map<DropdownMenuItem<String>>((String value) {
         return DropdownMenuItem<String>(
           value: value,
           child: Text(
             value,
-            overflow: TextOverflow.ellipsis,
             style: CustomTextStyles.bodySmallOnPrimary.copyWith(color: Colors.black),
           ),
         );
       }).toList(),
-      decoration: decoration,
-      validator: validator,
+      decoration: InputDecoration(
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 12.0, // Horizontal padding
+          vertical: 16.0,   // Vertical padding to adjust centering
+        ),
+      ),
       onChanged: (value) {
         onChanged!(value.toString());
       },
-    ),
+    )
   );
 
   InputDecoration get decoration => InputDecoration(
@@ -85,7 +91,7 @@ class CustomDropDown extends StatelessWidget {
     hintStyle: CustomTextStyles.bodySmallOnPrimary.copyWith(color: Colors.black),
     contentPadding: contentPadding ??
         EdgeInsets.symmetric(
-          horizontal: 10.h,
+          horizontal: 5.h,
           vertical: 9.v,
         ),
     fillColor: fillColor,

@@ -4,13 +4,19 @@ import 'package:emmet/core/app_export.dart';
 
 class CaptureTile extends StatelessWidget {
   final int tileIndex;
+  final String imgUrl;
+  final String setNum;
   final bool isClicked;
   final VoidCallback onTileClick;
+  final VoidCallback onDelete; // Add this
 
   const CaptureTile({
     required this.tileIndex,
+    required this.imgUrl,
+    required this.setNum,
     required this.isClicked,
     required this.onTileClick,
+    required this.onDelete, // Add this
     Key? key,
   }) : super(key: key);
 
@@ -22,10 +28,11 @@ class CaptureTile extends StatelessWidget {
         child: Stack(
           children: [
             Positioned.fill(
-              child: CustomImageView(
-                  imagePath: ImageConstant.imgMedia,
-                  height: 40.adaptSize,
-                  width: 40.adaptSize),
+              child: Image.network(
+                imgUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Icon(Icons.error),
+              ),
             ),
             if (isClicked)
               Center(
@@ -83,7 +90,7 @@ class CaptureTile extends StatelessWidget {
               child: Text("Delete"),
               onPressed: () {
                 Navigator.of(dialogContext).pop();
-                _deleteItem(context);
+                onDelete(); // Call the delete callback
               },
             ),
           ],
@@ -92,49 +99,23 @@ class CaptureTile extends StatelessWidget {
     );
   }
 
-  /// Delete Logic
-  void _deleteItem(BuildContext context) {
-    // Perform your delete logic here
-    // Example: delete the item from a list or database
-    // Update UI or show confirmation message
-    showDialog(
-      context: context,
-      builder: (BuildContext alertContext) {
-        return AlertDialog(
-          title: Text("Deleted"),
-          content: Text("LEGO set has been deleted."),
-          actions: <Widget>[
-            TextButton(
-              child: Text("OK"),
-              onPressed: () {
-                Navigator.of(alertContext).pop();
-
-              },
-            ),
-          ],
-        );
-      },
-    );
-    // Here you can perform further actions after deletion if needed
-  }
-
-  /// Build Button
   Widget _buildBuild(BuildContext context) {
     return CustomElevatedButton(
       width: 80.h,
       text: "Build",
       leftIcon: Container(
-          margin: EdgeInsets.only(right: 8.h),
-          child: CustomImageView(
-              imagePath: ImageConstant.imgBuild,
-              height: 24.adaptSize,
-              width: 24.adaptSize)),
+        margin: EdgeInsets.only(right: 8.h),
+        child: CustomImageView(
+          imagePath: ImageConstant.imgBuild,
+          height: 24.adaptSize,
+          width: 24.adaptSize,
+          fit: BoxFit.cover,
+        ),
+      ),
       onPressed: () {
-        Navigator.pushNamed(context, AppRoutes.buildScreen);
+        Navigator.pushNamed(context, AppRoutes.buildScreen, arguments: setNum); // Pass setNum
       },
     );
   }
+
 }
-
-
-

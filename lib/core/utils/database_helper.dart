@@ -1,4 +1,4 @@
-import 'package:flutter/services.dart'; // For rootBundle
+import 'package:flutter/services.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:io' as io;
@@ -21,11 +21,9 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, "rebrickable.sqlite");
 
-    // Check if the database exists
     if (await io.File(path).exists()) {
       return await openDatabase(path);
     } else {
-      // Copy from assets
       ByteData data = await rootBundle.load("assets/database/rebrickable.sqlite");
       List<int> bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
       await io.File(path).writeAsBytes(bytes);
@@ -36,7 +34,6 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> fetchSetsByParts(List<String> recognizedTags) async {
     final db = await database;
 
-    // Query to find sets with the most parts from recognized tags
     String query = '''
       SELECT si.set_num, si.name, si.img_url, COUNT(p.part_num) AS recognized_part_count
       FROM sets s
@@ -49,4 +46,5 @@ class DatabaseHelper {
 
     return await db.rawQuery(query, recognizedTags);
   }
+
 }

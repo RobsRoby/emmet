@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:emmet/widgets/custom_drop_down.dart';
 import 'package:emmet/core/app_export.dart';
 import 'package:emmet/widgets/bottom_navigation_bar.dart';
+import 'package:flutter/services.dart';
 
 class SettingsScreen extends StatefulWidget {
   SettingsScreen({Key? key}) : super(key: key);
@@ -13,7 +14,70 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   int currentIndex = 2;
   List<String> dropdownItemList = ["Low", "Medium", "High"];
-  double sliderValue = 52.94;
+  double iouThreshold = 0.5;
+  double confThreshold = 0.5;
+  double classThreshold = 0.5;
+  String cameraResolution = "Medium";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  // Fetch settings from the database
+  Future<void> _loadSettings() async {
+    final settings = await UserDatabaseHelper().getSettings();
+    setState(() {
+      iouThreshold = settings['iouThreshold'] ?? 0.5;
+      confThreshold = settings['confThreshold'] ?? 0.5;
+      classThreshold = settings['classThreshold'] ?? 0.5;
+      cameraResolution = settings['cameraResolution'] ?? "Medium";
+    });
+  }
+
+  // Save updated settings to the database
+  Future<void> _updateSettings() async {
+    await UserDatabaseHelper().updateSettings({
+      'iouThreshold': iouThreshold,
+      'confThreshold': confThreshold,
+      'classThreshold': classThreshold,
+      'cameraResolution': cameraResolution,
+    });
+  }
+
+  // Exit the app
+  void _exitApp() {
+    // This will close the app
+    SystemNavigator.pop();
+  }
+
+  void _showExitConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Confirm Exit"),
+          content: Text("Are you sure you want to exit the app?"),
+          actions: <Widget>[
+            TextButton(
+              child: Text("Cancel"),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+            ),
+            TextButton(
+              child: Text("Exit"),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                _exitApp(); // Call the method to exit the app
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,112 +106,127 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     SizedBox(height: 18.v),
-                    Text("Detection Sensitivity", style: CustomTextStyles.bodySmallOnPrimaryContainer),
-                    SizedBox(height: 2.v),
-                    Text(
-                      "Adjust the sensitivity level for detecting LEGO bricks.",
-                      style: CustomTextStyles.bodySmallGray500,
+
+                    // IOU Threshold Slider
+                    Row(
+                      children: [
+                        Text("IOU Threshold", style: CustomTextStyles.bodySmallOnPrimaryContainer),
+                        SizedBox(width: 8),
+                        Tooltip(
+                          message: "Intersection over Union (IOU) threshold controls the overlap required between predicted and actual boxes.",
+                          child: Icon(Icons.info_outline, color: Colors.grey, size: 20),
+                        ),
+                      ],
+                    ),
+                    Slider(
+                      value: iouThreshold,
+                      min: 0.0,
+                      max: 1.0,
+                      onChanged: (value) {
+                        setState(() {
+                          iouThreshold = value;
+                        });
+                        _updateSettings(); // Save when value changes
+                      },
                     ),
                     SizedBox(height: 10.v),
-                    Padding(
-                      padding: EdgeInsets.only(right: 6.h),
-                      child: SliderTheme(
-                        data: SliderThemeData(
-                          trackShape: RoundedRectSliderTrackShape(),
-                          activeTrackColor: appTheme.teal400,
-                          inactiveTrackColor: appTheme.gray200,
-                          thumbColor: appTheme.teal400,
-                          thumbShape: RoundSliderThumbShape(),
+
+                    // Confidence Threshold Slider
+                    Row(
+                      children: [
+                        Text("Confidence Threshold", style: CustomTextStyles.bodySmallOnPrimaryContainer),
+                        SizedBox(width: 8),
+                        Tooltip(
+                          message: "Confidence threshold sets the minimum confidence level for predictions to be considered.",
+                          child: Icon(Icons.info_outline, color: Colors.grey, size: 20),
                         ),
-                        child: Slider(
-                          value: sliderValue,
-                          min: 0.0,
-                          max: 100.0,
-                          onChanged: (value) {
-                            setState(() {
-                              sliderValue = value;  // Update the slider value
-                            });
-                          },
+                      ],
+                    ),
+                    Slider(
+                      value: confThreshold,
+                      min: 0.0,
+                      max: 1.0,
+                      onChanged: (value) {
+                        setState(() {
+                          confThreshold = value;
+                        });
+                        _updateSettings();
+                      },
+                    ),
+                    SizedBox(height: 10.v),
+
+                    // Class Threshold Slider
+                    Row(
+                      children: [
+                        Text("Class Threshold", style: CustomTextStyles.bodySmallOnPrimaryContainer),
+                        SizedBox(width: 8),
+                        Tooltip(
+                          message: "Class threshold determines how confident the model must be when classifying objects.",
+                          child: Icon(Icons.info_outline, color: Colors.grey ,size: 20),
                         ),
-                      ),
+                      ],
+                    ),
+                    Slider(
+                      value: classThreshold,
+                      min: 0.0,
+                      max: 1.0,
+                      onChanged: (value) {
+                        setState(() {
+                          classThreshold = value;
+                        });
+                        _updateSettings();
+                      },
                     ),
                     SizedBox(height: 13.v),
-                    Text("Camera Resolution", style: CustomTextStyles.bodySmallOnPrimaryContainer),
-                    SizedBox(height: 2.v),
-                    Text(
-                      "Choose the resolution for the camera feed.",
-                      style: CustomTextStyles.bodySmallGray500,
-                    ),
-                    SizedBox(height: 10.v),
-                    CustomDropDown(width: 90.h, hintText: "Medium", items: dropdownItemList),
-                    SizedBox(height: 20.v),
-                    Align(
-                      alignment: Alignment.center,
-                      child: Container(
-                        width: 234.h,
-                        margin: EdgeInsets.symmetric(horizontal: 14.h),
-                        padding: EdgeInsets.symmetric(horizontal: 11.h, vertical: 10.v),
-                        decoration: AppDecoration.outlineBlack.copyWith(
-                          borderRadius: BorderRadiusStyle.roundedBorder4,
+
+                    // Camera Resolution Dropdown
+                    Row(
+                      children: [
+                        Text("Camera Resolution", style: CustomTextStyles.bodySmallOnPrimaryContainer),
+                        SizedBox(width: 8),
+                        Tooltip(
+                          message: "Select the resolution for the camera feed in the app.",
+                          child: Icon(Icons.info_outline, color: Colors.grey, size: 20),
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            CustomImageView(imagePath: ImageConstant.imgLogo, height: 44.adaptSize, width: 44.adaptSize),
-                            SizedBox(height: 7.v),
-                            Text(
-                              "App Information",
-                              style: CustomTextStyles.bodySmallOnPrimaryContainer,
-                            ),
-                            SizedBox(height: 5.v),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Container(
-                                width: 200.h,
-                                margin: EdgeInsets.only(right: 12.h),
-                                child: RichText(
-                                  text: TextSpan(
-                                    children: [
-                                      TextSpan(
-                                        text: "App Name:",
-                                        style: theme.textTheme.labelSmall,
-                                      ),
-                                      TextSpan(
-                                        text: " Emmet\n",
-                                        style: CustomTextStyles.bodySmallff939393,
-                                      ),
-                                      TextSpan(
-                                        text: "\nVersion:",
-                                        style: theme.textTheme.labelSmall,
-                                      ),
-                                      TextSpan(
-                                        text: " 1.0.0 (Alpha Version)\n \n",
-                                        style: CustomTextStyles.bodySmallff939393,
-                                      ),
-                                      TextSpan(
-                                        text: "Developer:",
-                                        style: theme.textTheme.labelSmall,
-                                      ),
-                                      TextSpan(
-                                        text: "RUGBY BOIZ NG BSCS.\n\n",
-                                        style: CustomTextStyles.bodySmallff939393,
-                                      ),
-                                      TextSpan(
-                                        text:
-                                        "About Emmet:\nEmmet is your ultimate companion for LEGO brick enthusiasts. Whether you're a seasoned builder or just starting your LEGO journey, Emmet is here to inspire and guide you. With advanced object detection technology, Emmet helps you identify LEGO bricks effortlessly, opening doors to endless creative possibilities.",
-                                        style: theme.textTheme.labelSmall,
-                                      ),
-                                    ],
-                                  ),
-                                  textAlign: TextAlign.left,
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: 5.v),
-                          ],
+                      ],
+                    ),
+                    CustomDropDown(
+                      width: 90.h,
+                      hintText: cameraResolution,
+                      items: dropdownItemList,
+                      onChanged: (value) {
+                        setState(() {
+                          cameraResolution = value;
+                        });
+                        _updateSettings();
+                      },
+                    ),
+
+                    SizedBox(height: 30.v),
+
+                    // Exit App Button
+                    Center(
+                      child: TextButton(
+                        onPressed: () => _showExitConfirmationDialog(context),
+                        child: Text(
+                          "Exit App",
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white, // Set the text color to white
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          backgroundColor: Colors.red, // Set the button color
+                          padding: EdgeInsets.symmetric(horizontal: 50, vertical: 20),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(50.0), // Set the border radius
+                          ),
                         ),
                       ),
                     ),
+
+                    SizedBox(height: 5.v),
+
                   ],
                 ),
               ),

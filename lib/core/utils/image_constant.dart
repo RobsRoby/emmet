@@ -8,6 +8,7 @@ class ImageConstant {
   // Permission Screen
   static String cameraIconFilled = '$imagePath/camera-icon-filled.svg';
 
+
   static String securityIconFilled = '$imagePath/security-icon-filled.svg';
 
   static String accessIconFilled = '$imagePath/access-icon-filled.svg';
@@ -34,6 +35,7 @@ class ImageConstant {
   static String imgClose = '$imagePath/img_close_button.svg';
 
   static String imgTipsIcon = '$imagePath/tips_icon.svg';
+  static String legoIcon= '$imagePath/lego-icon.svg';
 
   // Explore images
   static String imgArrowLeft = '$imagePath/img_arrow_left.svg';

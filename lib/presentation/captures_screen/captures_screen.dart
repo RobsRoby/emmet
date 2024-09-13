@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'capture_tile.dart'; // Import the new CaptureTile widget
 import 'package:emmet/widgets/bottom_navigation_bar.dart';
+import 'package:emmet/core/app_export.dart';
+import 'package:shimmer/shimmer.dart';
 
 class CapturesScreen extends StatefulWidget {
   CapturesScreen({Key? key}) : super(key: key);
@@ -10,12 +12,47 @@ class CapturesScreen extends StatefulWidget {
 }
 
 class _CapturesScreenState extends State<CapturesScreen> {
-  int currentIndex = 1; // Added to track the active screen
-  int currentIndexPage = 0; // Added to track the active screen on pages
-
+  int currentIndex = 1; // Track the active screen
+  int currentIndexPage = 0; // Track the active screen on pages
   PageController _pageController = PageController();
-
   int? clickedTileIndex;
+  List<Map<String, dynamic>> _captures = [];
+  bool _isLoading = true;  // Track loading state
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCaptures();
+  }
+
+  Future<void> _fetchCaptures() async {
+    UserDatabaseHelper dbHelper = UserDatabaseHelper();
+    List<Map<String, dynamic>> captures = await dbHelper.fetchAllCaptures();
+    setState(() {
+      _captures = captures;
+      _isLoading = false;  // Stop loading when data is fetched
+    });
+  }
+
+  Future<void> _deleteCapture(int id) async {
+    UserDatabaseHelper dbHelper = UserDatabaseHelper();
+    await dbHelper.deleteCapture(id);
+    await _fetchCaptures(); // Refresh the list after deletion
+  }
+
+  Widget _buildShimmerTile() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: Container(
+        margin: EdgeInsets.all(8.0),
+        decoration: BoxDecoration(
+          color: Colors.grey[300],
+          borderRadius: BorderRadius.circular(10.0),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,11 +85,33 @@ class _CapturesScreenState extends State<CapturesScreen> {
             ),
             SizedBox(height: 20.0),
             Expanded(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0), // Add padding here
+              child: _isLoading
+                  ? Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.0),
+                child: GridView.builder(
+                  itemCount: 9,  // Number of shimmer tiles to show
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    childAspectRatio: 0.8,
+                  ),
+                  itemBuilder: (context, index) {
+                    return _buildShimmerTile();  // Display shimmer tile
+                  },
+                ),
+              )
+                  : _captures.isEmpty
+                  ? Center(
+                child: Text(
+                  "No captures available. \n You haven't saved any LEGO sets yet.",
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+              )
+                  : Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.0),
                 child: PageView.builder(
                   controller: _pageController,
-                  itemCount: 4, // 4 pages to accommodate 12 tiles (3x3 grid per page)
+                  itemCount: (_captures.length / 9).ceil(), // Calculate pages based on number of tiles
                   onPageChanged: (index) {
                     setState(() {
                       currentIndexPage = index;
@@ -60,15 +119,18 @@ class _CapturesScreenState extends State<CapturesScreen> {
                   },
                   itemBuilder: (context, pageIndex) {
                     return GridView.builder(
-                      itemCount: 9, // 3x3 grid
+                      itemCount: (_captures.length - pageIndex * 9).clamp(0, 9),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 3,
-                        childAspectRatio: 0.8, // Adjust the aspect ratio if needed
+                        childAspectRatio: 0.8,
                       ),
                       itemBuilder: (context, index) {
                         int tileIndex = pageIndex * 9 + index;
+                        var capture = _captures[tileIndex];
                         return CaptureTile(
                           tileIndex: tileIndex,
+                          imgUrl: capture['img_url'],
+                          setNum: capture['set_num'],
                           isClicked: clickedTileIndex == tileIndex,
                           onTileClick: () {
                             setState(() {
@@ -79,6 +141,9 @@ class _CapturesScreenState extends State<CapturesScreen> {
                               }
                             });
                           },
+                          onDelete: () {
+                            _deleteCapture(capture['id']); // Pass the delete callback
+                          },
                         );
                       },
                     );
@@ -86,27 +151,30 @@ class _CapturesScreenState extends State<CapturesScreen> {
                 ),
               ),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(4, (index) {
-                return GestureDetector(
-                  onTap: () {
-                    _pageController.animateToPage(index,
-                        duration: Duration(milliseconds: 300),
-                        curve: Curves.easeInOut);
-                  },
-                  child: Container(
-                    margin: EdgeInsets.all(10.0),
-                    width: currentIndexPage == index ? 12.0 : 8.0,
-                    height: currentIndexPage == index ? 12.0 : 8.0,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: currentIndexPage == index ? Color.fromRGBO(33, 156, 144, 1) : Colors.grey,
+            if (_captures.isNotEmpty)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate((_captures.length / 9).ceil(), (index) {
+                  return GestureDetector(
+                    onTap: () {
+                      _pageController.animateToPage(index,
+                          duration: Duration(milliseconds: 300),
+                          curve: Curves.easeInOut);
+                    },
+                    child: Container(
+                      margin: EdgeInsets.all(10.0),
+                      width: currentIndexPage == index ? 12.0 : 8.0,
+                      height: currentIndexPage == index ? 12.0 : 8.0,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: currentIndexPage == index
+                            ? Color.fromRGBO(33, 156, 144, 1)
+                            : Colors.grey,
+                      ),
                     ),
-                  ),
-                );
-              }),
-            ),
+                  );
+                }),
+              ),
           ],
         ),
         bottomNavigationBar: BottomNavigationBarWidget(
