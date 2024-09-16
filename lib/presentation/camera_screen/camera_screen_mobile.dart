@@ -101,7 +101,7 @@ class _CameraScreenState extends State<CameraScreen> {
     await vision.loadYoloModel(
       labels: GetModel.labelsPath,
       modelPath: GetModel.modelPath,
-      modelVersion: "yolov8",
+      modelVersion: GetModel.modelVersion,
       quantization: false,
       numThreads: numThreads,
       useGpu: true,
