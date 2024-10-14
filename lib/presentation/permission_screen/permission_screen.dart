@@ -92,7 +92,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
                           ),
                           SizedBox(height: 1.v),
                           Text(
-                            "No images are stored or shared",
+                            "No images are shared.",
                             style: CustomTextStyles.bodySmallOnPrimaryContainer,
                           ),
                         ],

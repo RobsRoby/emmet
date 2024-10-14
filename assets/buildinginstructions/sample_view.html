@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <meta charset=utf-8>
+  <title>Sample Render</title>
+  <meta name="viewport" content="width=device-width" />
+ </head>
+ <body>
+    <!-- Three.js core libraries. three.min.js is required for rendering, while OrbitControls.js is used for user input -->
+    <script src="js/three.min.js"></script><script src="js/OrbitControls.js"></script>
+
+    <!-- Three.js libraries for supporting Outline Pass -->
+    <script src="js/CopyShader.js"></script><script src="js/Pass.js"></script><script src="js/OutlinePass.js"></script><script src="js/ShaderPass.js"></script><script src="js/RenderPass.js"></script><script src="js/MaskPass.js"></script><script src="js/EffectComposer.js"></script>
+
+    <!-- buildinginstructions.js core libraries. All required. -->
+    <script src="js/colors.js"></script><script src="js/LDRShaders.js"></script><script src="js/LDRColorMaterials.js"></script><script src="js/LDRGeometries.js"></script><script src="js/LDRLoader.js"></script>
+
+    <!-- buildinginstructions.js optional libraries: Generator.js for quick creation of some primitives. Required for studs.js which can create customized studs. StudioTexmap.js allows for Studio 2.0-created files -->    
+    <script src="js/LDRGenerator.js"></script>
+    <script src="js/LDRStuds.js"></script>
+    <script src="js/StudioTexmap.js"></script>
+
+    <script>
+      let startTime = new Date();
+      
+      let model = `
+0 FILE TIE Drone.ldr
+0 TIE Drone
+0 Name: TIE Drone.ldr
+0 Author: R Paluczak
+0 Unofficial Model
+0 ROTATION CENTER 0 0 0 1 "Custom" 
+0 ROTATION CONFIG 0 0
+1 0 -20 52 0 1 0 0 0 1 0 0 0 1 TIE Drone Cockpit.ldr
+1 0 147.625 -155.16 -180 -0.390731 -0.920505 0 -0.920505 0.390731 0 0 0 -1 TIE Drone Panel Left.ldr
+1 0 -207.62 -155.211 99.8 0.390731 0.920505 0 -0.920505 0.390731 0 0 0 1 TIE Drone Panel Right.ldr
+0 
+
+0 FILE TIE Drone Cockpit.ldr
+0 TIE Drone Cockpit
+0 Name: TIE Drone Cockpit.ldr
+0 Author: R Paluczak
+0 Unofficial Model
+0 ROTATION CENTER -80.1101 -45.8 -110.255 1 "Custom" 
+0 ROTATION CONFIG 0 0
+1 1 -10 8 0 1 0 0 0 1 0 0 0 1 3020.dat
+1 1 -10 -120 -70 1 0 0 0 1 0 0 0 1 3710.dat
+1 1 -10 -128 -70 1 0 0 0 1 0 0 0 1 2412b.dat
+1 1 -10 -128 -50 1 0 0 0 1 0 0 0 1 2431.dat
+1 2 -10 -128 -30 1 0 0 0 1 0 0 0 1 3794b.dat
+1 72 -10 -144 -30 1 0 0 0 1 0 0 0 1 3960ps2.dat
+1 1 -40 -128 -20 0 0 -1 0 1 0 1 0 0 2412b.dat
+1 1 20 -128 -20 0 0 -1 0 1 0 1 0 0 2412b.dat
+1 71 -10 -120 -90 1 0 0 0 1 0 0 0 1 44567.dat
+1 71 -10 -90.561 -122.61 0 0 -1 -0.93358 0.358368 0 0.358368 0.93358 0 44302.dat
+1 71 -10 16 -90 1 0 0 0 1 0 0 0 1 44567.dat
+1 71 -10 -9.445 -122.61 0 0 1 0.93358 -0.358368 0 0.358368 0.93358 0 44302.dat
+1 1 -10 -104 -20 1 0 0 0 1 0 0 0 1 3020.dat
+1 71 20 -112 -30 0 0 -1 0 1 0 1 0 0 2420.dat
+1 71 -40 -112 -30 1 0 0 0 1 0 0 0 1 2420.dat
+1 72 -30 -120 -30 0 0 -1 0 1 0 1 0 0 3021.dat
+1 72 10 -120 -30 0 0 -1 0 1 0 1 0 0 3021.dat
+1 0 -10 8 -60 1 0 0 0 1 0 0 0 1 6179.dat
+1 7 -10 -16 -20 0 0 -1 0 1 0 1 0 0 30283.dat
+1 0 20 16 -40 0 0 1 0 1 0 -1 0 0 3710.dat
+1 0 -40 16 -40 0 0 1 0 1 0 -1 0 0 3710.dat
+1 1 -10 16 -70 1 0 0 0 1 0 0 0 1 3023.dat
+1 1 -10 16 -10 1 0 0 0 1 0 0 0 1 3023.dat
+1 0 10 -24 10 -1 0 0 0 1 0 0 0 -1 3660.dat
+1 72 -40 -48 10 0 0 -1 0 1 0 1 0 0 2357.dat
+1 72 -60 -24 -20 0 0 -1 0 1 0 1 0 0 3710.dat
+1 72 40 -24 -20 0 0 -1 0 1 0 1 0 0 3710.dat
+1 0 -10 -32 -50 -1 0 0 0 1 0 0 0 -1 3666.dat
+1 0 -10 -72 30 -1 0 0 0 1 0 0 0 -1 3701.dat
+1 0 60 -80 -40 0 0 -1 0 1 0 1 0 0 3701.dat
+1 0 -80 -80 -40 0 0 -1 0 1 0 1 0 0 3701.dat
+1 72 -110 -80 -60 1 0 0 0 1 0 0 0 1 30000.dat
+1 72 -110 -80 -20 1 0 0 0 1 0 0 0 1 30000.dat
+1 1 -110 -56 -40 1 0 0 0 1 0 0 0 1 3003.dat
+1 1 -110 -88 -40 1 0 0 0 1 0 0 0 1 3022.dat
+1 71 -100 -112 -40 0 0 1 0 1 0 -1 0 0 3049b.dat
+1 0 -120 -112 -40 1 0 0 0 1 0 0 0 1 3044b.dat
+1 72 90 -80 -20 -1 0 0 0 1 0 0 0 -1 30000.dat
+1 72 90 -80 -60 -1 0 0 0 1 0 0 0 -1 30000.dat
+1 1 90 -56 -40 -1 0 0 0 1 0 0 0 -1 3003.dat
+1 1 90 -88 -40 -1 0 0 0 1 0 0 0 -1 3022.dat
+1 71 79.999 -112 -40.002 0 0 -1 0 1 0 1 0 0 3049b.dat
+1 0 100.001 -112 -40 -1 0 0 0 1 0 0 0 -1 3044b.dat
+1 71 -10 -62.2 40 0 0 -1 0 1 0 1 0 0 4274.dat
+1 1 -10 -48 -20 -1 0 0 0 1 0 0 0 -1 3007.dat
+1 72 40 -56 -20 -1 0 0 0 1 0 0 0 -1 3021.dat
+1 72 -60 -56 -20 -1 0 0 0 1 0 0 0 -1 3021.dat
+1 72 20 -48 10 1 0 0 0 1 0 0 0 1 2357.dat
+1 19 -10 -48 30 1 0 0 0 1 0 0 0 1 3004.dat
+1 19 -50 -72 10 1 0 0 0 1 0 0 0 1 3004.dat
+1 19 30 -72 10 1 0 0 0 1 0 0 0 1 3004.dat
+1 42 40 -80 10 1 0 0 0 1 0 0 0 1 4073.dat
+1 42 20 -6 -128 1 0 0 0 0 -1 0 1 0 4073.dat
+1 42 -40 -6 -128 1 0 0 0 0 -1 0 1 0 4073.dat
+1 42 -60 -80 10 1 0 0 0 1 0 0 0 1 4073.dat
+1 0 -30 -24 10 -1 0 0 0 1 0 0 0 -1 3660.dat
+1 0 -50 -56 -50 -1 0 0 0 1 0 0 0 -1 30541.dat
+1 71 -50 -80 -30 0 0 1 0 1 0 -1 0 0 3002.dat
+1 71 30 -80 -30 0 0 1 0 1 0 -1 0 0 3002.dat
+1 72 -10 -88 -50 -1 0 0 0 1 0 0 0 -1 3710.dat
+1 1 -70 -88 -40 -1 0 0 0 1 0 0 0 -1 3022.dat
+1 1 50 -88 -40 -1 0 0 0 1 0 0 0 -1 3022.dat
+1 1 -80 -112 -40 0 0 1 0 1 0 -1 0 0 3048.dat
+1 1 60 -112 -40 0 0 -1 0 1 0 1 0 0 3048.dat
+1 1 40 -112 -50 1 0 0 0 1 0 0 0 1 3040b.dat
+1 1 -60 -112 -50 1 0 0 0 1 0 0 0 1 3040b.dat
+1 0 40 -112 -30 -1 0 0 0 1 0 0 0 -1 4286.dat
+1 0 -20 -104 10 0 0 -1 0 1 0 1 0 0 2555.dat
+1 0 0 -104 10 0 0 -1 0 1 0 1 0 0 2555.dat
+1 19 -10 -112 -10 -1 0 0 0 1 0 0 0 -1 48336.dat
+1 0 -60 -112 -30 -1 0 0 0 1 0 0 0 -1 4286.dat
+1 71 -60 -88 -10 0 0 -1 0 1 0 1 0 0 2420.dat
+1 71 40 -88 -10 1 0 0 0 1 0 0 0 1 2420.dat
+1 36 -10 -60 -20 1 0 0 0 1 0 0 0 1 4740.dat
+1 0 -10 -84 -20 1 0 0 0 1 0 0 0 1 30367a.dat
+1 36 -10 -92 -20 1 0 0 0 1 0 0 0 1 4073.dat
+1 7 -10 -62 55.9 0 0 -1 1 0 0 0 -1 0 3960.dat
+1 33 -10 -62 64 0 0 -1 1 0 0 0 -1 0 4740.dat
+1 7 -30 -80 60 1 0 0 0 1 0 0 0 1 3009.dat
+1 7 -50 -80 60 1 0 0 0 1 0 0 0 1 3009.dat
+1 7 -70 -80 60 1 0 0 0 1 0 0 0 1 3009.dat
+1 7 -90 -80 60 1 0 0 0 1 0 0 0 1 3009.dat
+1 7 -110 -80 60 1 0 0 0 1 0 0 0 1 3009.dat
+1 0 -60 -120 -50 0 0 1 -0.979 0.204 0 0.204 0.979 1 0 0 10174_8a.ldr
+0
+0 FILE 10174_8a.ldr
+0 Imperial AT-ST
+0 Name: 10174_8a.ldr
+0 Author: Sebastian Sand
+0 Unofficial Model
+0 ROTATION CENTER 0 0 0 1 "Custom" 
+0 ROTATION CONFIG 0 0
+1 0 0 0 0 0 0 1 0 1 0 -1 0 0 4740.dat
+1 72 0 30 0 0 -1 0 -1 0 0 0 0 -1 3713.dat
+1 72 0 -24 0 1 0 0 0 1 0 0 0 1 4032a.dat
+1 72 0 -32 0 1 0 0 0 1 0 0 0 1 3961.dat
+1 72 0 -40 0 1 0 0 0 1 0 0 0 1 45729.dat
+
+0 FILE 10174_8.ldr
+0 Imperial AT-ST
+0 Name: 10174_8.ldr
+0 Author: Sebastian Sand
+0 Unofficial Model
+0 ROTATION CENTER 0 0 0 1 "Custom" 
+0 ROTATION CONFIG 0 0
+1 71 0 0 0 1 0 0 0 1 0 0 0 1 3028.dat
+1 71 -60 0 0 1 0 0 0 1 0 0 0 1 3028.dat
+1 71 -100 0 0 1 0 0 0 1 0 0 0 1 3028.dat
+1 71 0 -24 -30 -1 0 0 0 1 0 0 0 -1 3009.dat
+1 72 -40 -24 -20 0 0 1 0 1 0 -1 0 0 3023.dat
+1 72 40 -24 -20 0 0 1 0 1 0 -1 0 0 3023.dat
+1 71 -10 -24 30 -1 0 0 0 1 0 0 0 -1 3035.dat
+1 71 -10 -24 50 -1 0 0 0 1 0 0 0 -1 3021.dat
+1 71 0 -24 -80 0 0 -1 0 1 0 1 0 0 3031.dat
+1 72 -20 -48 -40 1 0 0 0 1 0 0 0 1 30244.dat
+1 72 20 -48 -40 1 0 0 0 1 0 0 0 1 30244.dat
+1 72 20 -48 -40 0 0 1 -1 0 0 0 1 0 30244.dat
+1 72 -20 -48 -40 0 0 -1 -1 0 0 0 1 0 30244.dat
+1 0 -10 -48 50 0 0 -1 0 1 0 1 0 0 10174_8b.ldr
+0
+0 FILE 10174_8b.ldr
+0 Imperial AT-ST
+0 Name: 10174_8b.ldr
+0 Author: Sebastian Sand
+0 Unofficial Model
+0 ROTATION CENTER 0 0 0 1 "Custom" 
+0 ROTATION CONFIG 0 0
+1 0 0 0 0 -1 0 1 0 0 0 0 -1 4740.dat
+1 72 0 30 0 0 -1 0 0 0 -1 1 0 0 3713.dat
+1 72 0 -24 0 -1 0 0 0 1 0 0 0 -1 4032a.dat
+1 72 0 -32 0 -1 0 0 0 1 0 0 0 -1 3961.dat
+1 72 0 -40 0 -1 0 0 0 1 0 0 0 -1 45729.dat
+
+0 FILE 10174_9.ldr
+0 Imperial AT-ST
+0 Name: 10174_9.ldr
+0 Author: Sebastian Sand
+0 Unofficial Model
+0 ROTATION CENTER 0 0 0 1 "Custom" 
+0 ROTATION CONFIG 0 0
+1 71 20 10 10 -1 0 0 0 1 0 0 0 -1 3024.dat
+1 71 -20 10 10 -1 0 0 0 1 0 0 0 -1 3024.dat
+1 71 -50 -8 50 1 0 0 0 1 0 0 0 1 3024.dat
+1 71 -50 -24 50 -1 0 0 0 1 0 0 0 -1 3024.dat
+1 71 -70 -32 50 -1 0 0 0 1 0 0 0 -1 3024.dat
+1 71 -30 -32 50 -1 0 0 0 1 0 0 0 -1 3024.dat
+1 71 -10 -32 50 -1 0 0 0 1 0 0 0 -1 3024.dat
+1 71 10 -32 50 -1 0 0 0 1 0 0 0 -1 3024.dat
+1 71 30 -32 50 -1 0 0 0 1 0 0 0 -1 3024.dat
+1 71 50 -8 50 -1 0 0 0 1 0 0 0 -1 3024.dat
+1 71 70 -32 50 -1 0 0 0 1 0 0 0 -1 3024.dat
+1 71 50 -24 50 -1 0 0 0 1 0 0 0 -1 3024.dat
+1 71 70 -24 50 -1 0 0 0 1 0 0 0 -1 3024.dat
+0
+0 FILE Front Left Panel.ldr
+0 Front Left Panel
+0 Name: Front Left Panel.ldr
+0 Author: R Paluczak
+0 Unofficial Model
+0 ROTATION CENTER 0 0 0 1 "Custom" 
+0 ROTATION CONFIG 0 0
+1 71 -10 0 -20 -1 0 0 0 1 0 0 0 -1 3022.dat
+1 71 -10 0 -40 1 0 0 0 1 0 0 0 1 3022.dat
+1 71 50 0 -100 -1 0 0 0 1 0 0 0 -1 3022.dat
+1 71 50 0 -80 1 0 0 0 1 0 0 0 1 3022.dat
+1 71 110 0 -160 -1 0 0 0 1 0 0 0 -1 3022.dat
+1 71 110 0 -140 1 0 0 0 1 0 0 0 1 3022.dat
+1 71 170 0 -220 -1 0 0 0 1 0 0 0 -1 3022.dat
+1 71 170 0 -200 1 0 0 0 1 0 0 0 1 3022.dat
+1 71 230 0 -280 -1 0 0 0 1 0 0 0 -1 3022.dat
+1 71 230 0 -260 1 0 0 0 1 0 0 0 1 3022.dat
+1 71 -70 0 -20 0 0 -1 0 1 0 1 0 0 3022.dat
+1 71 10 0 20 -1 0 0 0 1 0 0 0 -1 3022.dat
+1 71 70 0 80 -1 0 0 0 1 0 0 0 -1 3022.dat
+1 71 70 0 100 1 0 0 0 1 0 0 0 1 3022.dat
+1 19 -10 0 160 -1 0 0 0 1 0 0 0 -1 3020.dat
+1 19 70 0 160 -1 0 0 0 1 0 0 0 -1 3020.dat
+1 19 130 0 160 -1 0 0 0 1 0 0 0 -1 3020.dat
+1 19 190 0 160 -1 0 0 0 1 0 0 0 -1 3020.dat
+1 19 250 0 160 -1 0 0 0 1 0 0 0 -1 3020.dat
+1 19 310 0 160 -1 0 0 0 1 0 0 0 -1 3020.dat
+1 19 370 0 160 -1 0 0 0 1 0 0 0 -1 3020.dat
+1 19 430 0 160 -1 0 0 0 1 0 0 0 -1 3020.dat
+1 19 490 0 160 -1 0 0 0 1 0 0 0 -1 3020.dat
+1 19 -70 0 240 1 0 0 0 1 0 0 0 1 3020.dat
+1 19 -10 0 240 1 0 0 0 1 0 0 0 1 3020.dat
+1 19 50 0 240 1 0 0 0 1 0 0 0 1 3020.dat
+1 19 110 0 240 1 0 0 0 1 0 0 0 1 3020.dat
+1 19 170 0 240 1 0 0 0 1 0 0 0 1 3020.dat
+1 19 230 0 240 1 0 0 0 1 0 0 0 1 3020.dat
+1 19 290 0 240 1 0 0 0 1 0 0 0 1 3020.dat
+1 19 350 0 240 1 0 0 0 1 0 0 0 1 3020.dat
+1 19 410 0 240 1 0 0 0 1 0 0 0 1 3020.dat
+1 19 470 0 240 1 0 0 0 1 0 0 0 1 3020.dat
+1 19 10 80 0 0 0 1 0 1 0 -1 0 0 3622.dat
+1 19 70 80 0 0 0 1 0 1 0 -1 0 0 3622.dat
+1 19 130 80 0 0 0 1 0 1 0 -1 0 0 3622.dat
+1 19 190 80 0 0 0 1 0 1 0 -1 0 0 3622.dat
+1 19 250 80 0 0 0 1 0 1 0 -1 0 0 3622.dat
+1 19 -10 80 0 0 0 1 0 1 0 -1 0 0 3622.dat
+1 19 -70 80 0 0 0 1 0 1 0 -1 0 0 3622.dat
+1 19 -130 80 0 0 0 1 0 1 0 -1 0 0 3622.dat
+1 19 -190 80 0 0 0 1 0 1 0 -1 0 0 3622.dat
+1 19 -250 80 0 0 0 1 0 1 0 -1 0 0 3622.dat
+1 19 0 -8 40 1 0 0 0 1 0 0 0 1 2444.dat
+1 19 -60 -8 40 1 0 0 0 1 0 0 0 1 2444.dat
+1 19 60 -8 40 1 0 0 0 1 0 0 0 1 2444.dat
+1 71 0 0 -60 1 0 0 0 1 0 0 0 1 3036.dat
+1 71 0 0 -140 -1 0 0 0 1 0 0 0 -1 3036.dat
+1 0 0 -8 280 -1 0 0 0 1 0 0 0 -1 3004.dat
+1 0 -10 0 220 -1 0 0 0 1 0 0 0 -1 3004.dat
+1 0 10 0 220 -1 0 0 0 1 0 0 0 -1 3004.dat
+1 0 0 0 220 -1 0 0 0 1 0 0 0 -1 3004.dat
+1 71 -70 0 -100 -1 0 0 0 1 0 0 0 -1 2420.dat
+1 71 10 0 -100 0 0 -1 0 1 0 1 0 0 2420.dat
+1 71 -10 -8 160 1 0 0 0 1 0 0 0 1 2431.dat
+1 71 10 -8 160 1 0 0 0 1 0 0 0 1 2431.dat
+1 71 -70 -8 160 1 0 0 0 1 0 0 0 1 2431.dat
+1 71 70 -8 160 1 0 0 0 1 0 0 0 1 2431.dat
+1 0 0 -8 0 -1 0 0 0 1 0 0 0 -1 2877.dat
+1 0 -10 0 0 1 0 0 0 1 0 0 0 1 2877.dat
+1 0 -20 -8 0 1 0 0 0 1 0 0 0 1 2877.dat
+1 0 -60 -8 0 1 0 0 0 1 0 0 0 1 2877.dat
+1 0 10 0 0 1 0 0 0 1 0 0 0 1 2877.dat
+1 0 20 -8 0 1 0 0 0 1 0 0 0 1 2877.dat
+1 0 60 -8 0 1 0 0 0 1 0 0 0 1 2877.dat
+1 0 100 -8 0 0 0 -1 0 1 0 1 0 0 2877.dat
+1 0 120 -8 0 0 0 -1 0 1 0 1 0 0 2877.dat
+1 0 140 -8 0 0 0 -1 0 1 0 1 0 0 2877.dat
+1 0 160 -8 0 0 0 -1 0 1 0 1 0 0 2877.dat
+1 0 180 -8 0 0 0 -1 0 1 0 1 0 0 2877.dat
+`;
+      // Set up camera:
+      let camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000000);
+
+      // Set up scene:
+      let scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xFFFFFF);
+
+      let baseObject = new THREE.Group(), opaqueObject = new THREE.Group(), sixteenObject = new THREE.Group(); transObject = new THREE.Group();
+      baseObject.add(opaqueObject); baseObject.add(sixteenObject); baseObject.add(transObject); scene.add(baseObject); // Draw non-trans before trans.
+      let mc = new LDR.MeshCollector(opaqueObject, sixteenObject, transObject);
+
+      // Set up renderer:
+      let composer = null, storage;
+      let renderer = new THREE.WebGLRenderer({antialias: true});
+      renderer.setPixelRatio(window.devicePixelRatio);
+      document.body.appendChild(renderer.domElement);
+
+      let render = () => composer === null ? renderer.render(scene, camera) : composer.render();
+
+      function onWindowResize(){
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        camera.left = -(camera.right = w);
+        camera.bottom = -(camera.top = h);
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(w, h);
+
+        composer = new THREE.EffectComposer(renderer);
+        composer.addPass(new THREE.RenderPass(scene, camera));
+        if(!mc.attachGlowPasses(w, h, scene, camera, composer)) {
+          composer = null; // Nothing glows - just render directly.
+        }
+        render();
+      }
+
+      // React to user input:
+      let controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.addEventListener('change', render);
+      window.addEventListener('resize', onWindowResize, false);
+
+      // Three.js loader for LDraw models:
+      let ldrLoader;
+
+      let onLoad = function() {
+        ldrLoader.generate(14, mc);
+
+        // Find center of drawn model:
+        let b = mc.boundingBox;
+        let elementCenter = new THREE.Vector3();
+        b.getCenter(elementCenter);
+        baseObject.position.set(-elementCenter.x, -elementCenter.y, -elementCenter.z);
+        //baseObject.add(new THREE.Box3Helper(b, 0x0000FF)); // Uncomment if you want to see the bounding box
+
+        let size = b.min.distanceTo(b.max);
+        camera.position.set(size, 0.7*size, size);
+        camera.lookAt(new THREE.Vector3());
+        camera.far = 2*size;
+	camera.zoom = 1.5*window.innerWidth/size;
+        onWindowResize();
+
+        console.log("Model rendered in " + (new Date()-startTime) + "ms.");
+      }
+
+      LDR.Studs.makeGenerators('', 0, 1);
+      ldrLoader = new THREE.LDRLoader(onLoad, null, {cleanUpPrimitivesAndSubParts:false});
+      ldrLoader.load(
+                  URL.createObjectURL(new Blob([model], { type: "text/plain" })),
+                  () => { }
+      );
+ </script>
+ </body>
+</html>

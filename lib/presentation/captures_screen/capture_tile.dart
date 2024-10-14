@@ -1,10 +1,13 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:emmet/widgets/custom_elevated_button.dart';
 import 'package:emmet/core/app_export.dart';
 
 class CaptureTile extends StatelessWidget {
   final int tileIndex;
-  final String imgUrl;
+  final String? imgUrl;
+  final Uint8List? imgData;
   final String setNum;
   final bool isClicked;
   final VoidCallback onTileClick;
@@ -13,6 +16,7 @@ class CaptureTile extends StatelessWidget {
   const CaptureTile({
     required this.tileIndex,
     required this.imgUrl,
+    required this.imgData,
     required this.setNum,
     required this.isClicked,
     required this.onTileClick,
@@ -28,11 +32,7 @@ class CaptureTile extends StatelessWidget {
         child: Stack(
           children: [
             Positioned.fill(
-              child: Image.network(
-                imgUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Icon(Icons.error),
-              ),
+              child: _buildImage(),
             ),
             if (isClicked)
               Center(
@@ -49,6 +49,28 @@ class CaptureTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // Function to render image depending on the source type
+  Widget _buildImage() {
+    if (imgData != null) {
+      // If imgData is provided (in-memory image)
+      return Image.memory(
+        imgData!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Icon(Icons.error),
+      );
+    } else if (imgUrl != null && imgUrl!.isNotEmpty) {
+      // If imgUrl is a valid network URL or file path
+      return Image.network(
+        imgUrl!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Icon(Icons.error),
+      );
+    } else {
+      // Fallback if no valid image is provided
+      return Icon(Icons.image_not_supported);
+    }
   }
 
   /// Delete Button

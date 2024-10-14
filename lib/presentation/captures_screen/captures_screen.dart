@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'capture_tile.dart'; // Import the new CaptureTile widget
 import 'package:emmet/widgets/bottom_navigation_bar.dart';
@@ -34,9 +35,9 @@ class _CapturesScreenState extends State<CapturesScreen> {
     });
   }
 
-  Future<void> _deleteCapture(int id) async {
+  Future<void> _deleteCapture(String setNum, bool isGeneratedSet) async {
     UserDatabaseHelper dbHelper = UserDatabaseHelper();
-    await dbHelper.deleteCapture(id);
+    await dbHelper.deleteCapture(setNum, isGeneratedSet);
     await _fetchCaptures(); // Refresh the list after deletion
   }
 
@@ -129,7 +130,8 @@ class _CapturesScreenState extends State<CapturesScreen> {
                         var capture = _captures[tileIndex];
                         return CaptureTile(
                           tileIndex: tileIndex,
-                          imgUrl: capture['img_url'],
+                          imgUrl: capture['img_url'] as String?,
+                          imgData: capture['img_data'] as Uint8List?,
                           setNum: capture['set_num'],
                           isClicked: clickedTileIndex == tileIndex,
                           onTileClick: () {
@@ -142,7 +144,11 @@ class _CapturesScreenState extends State<CapturesScreen> {
                             });
                           },
                           onDelete: () {
-                            _deleteCapture(capture['id']); // Pass the delete callback
+                            if (capture['img_data'] != null) {
+                              _deleteCapture(capture['set_num'], true);
+                            }else{
+                              _deleteCapture(capture['set_num'], false);
+                            }
                           },
                         );
                       },

@@ -1,5 +1,6 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'dart:typed_data';
 import 'dart:io' as io;
 
 class UserDatabaseHelper {
@@ -27,7 +28,7 @@ class UserDatabaseHelper {
       // Create a new database if it doesn't exist
       return await openDatabase(
         path,
-        version: 1,
+        version: 2, // Increment the version number to reflect schema change
         onCreate: _onCreate,
       );
     }
@@ -40,7 +41,8 @@ class UserDatabaseHelper {
         iouThreshold REAL DEFAULT 0.5,
         confThreshold REAL DEFAULT 0.5,
         classThreshold REAL DEFAULT 0.5,
-        cameraResolution TEXT DEFAULT 'medium'
+        cameraResolution TEXT DEFAULT 'medium',
+        GeminiApiKey TEXT
       )
     ''');
 
@@ -53,12 +55,24 @@ class UserDatabaseHelper {
       )
     ''');
 
+    // Create 'generatedSets' table for storing generated sets
+    await db.execute('''
+      CREATE TABLE generatedSets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        set_num TEXT,
+        img_data BLOB,
+        set_name TEXT,
+        ldr_model TEXT
+      )
+    ''');
+
     // Insert default settings values
     await db.insert('settings', {
       'iouThreshold': 0.5,
       'confThreshold': 0.5,
       'classThreshold': 0.5,
-      'cameraResolution': 'medium'
+      'cameraResolution': 'medium',
+      'GeminiApiKey': ''
     });
   }
 
@@ -78,6 +92,12 @@ class UserDatabaseHelper {
     return await db.update('settings', settings);
   }
 
+  Future<void> deleteDatabase() async {
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, "user_database.sqlite");
+    await io.File(path).delete();
+  }
+
   // Check if a set already exists in the 'captures' table
   Future<bool> doesSetExist(String setNum) async {
     final db = await database;
@@ -95,20 +115,69 @@ class UserDatabaseHelper {
     await db.insert('captures', {'set_num': setNum, 'img_url': imgUrl});
   }
 
-  // To fetch all captures
+  // Fetch all captures
   Future<List<Map<String, dynamic>>> fetchAllCaptures() async {
     final db = await database;
-    return await db.query('captures'); // Retrieve all entries from the 'captures' table
+
+    // Fetch captures
+    List<Map<String, dynamic>> captures = await db.query('captures');
+
+    // Fetch generated sets and convert BLOB to URL
+    List<Map<String, dynamic>> generatedSets = await db.query('generatedSets');
+    List<Map<String, dynamic>> convertedGeneratedSets = generatedSets.map((set) {
+      Uint8List imgData = getImageDataFromGeneratedSet(set);
+
+      // Update the set with the in-memory image data (as Uint8List)
+      return {
+        'id': set['id'],
+        'set_num': set['set_num'],
+        'img_data': imgData,
+        'set_name': set['set_name'],
+      };
+    }).toList();
+    return await captures + convertedGeneratedSets;
   }
 
-// To Delete a capture
-  Future<void> deleteCapture(int id) async {
+  // Delete a capture
+  Future<void> deleteCapture(String set_num, bool isGeneratedSet) async {
     final db = await database;
-    await db.delete(
-      'captures',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+
+    if (isGeneratedSet) {
+      await db.delete(
+        'generatedSets',
+        where: 'set_num = ?',
+        whereArgs: [set_num],
+      );
+    } else {
+      await db.delete(
+        'captures',
+        where: 'set_num = ?',
+        whereArgs: [set_num],
+      );
+    }
+  }
+
+  // Convert your image to Uint8List (byte array)
+  Future<void> saveGeneratedSet(String setNum, Uint8List imgData, String setName, String ldrModel) async {
+    final db = await database;
+    await db.insert('generatedSets', {
+      'set_num': setNum,
+      'img_data': imgData,
+      'set_name': setName,
+      'ldr_model': ldrModel
+    });
+  }
+
+  // Fetch all generated sets
+  Future<List<Map<String, dynamic>>> fetchAllGeneratedSets() async {
+    final db = await database;
+    return await db.query('generatedSets');
+  }
+
+  // Convert BLOB back to image data
+  Uint8List getImageDataFromGeneratedSet(Map<String, dynamic> generatedSet) {
+    return generatedSet['img_data'] as Uint8List; // Convert to Uint8List
   }
 
 }
+

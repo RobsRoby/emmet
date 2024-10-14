@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:math';
+import 'package:webview_flutter/webview_flutter.dart';
 import 'package:emmet/widgets/app_bar/custom_app_bar.dart';
 import 'package:emmet/widgets/app_bar/appbar_leading_image.dart';
 import 'package:emmet/widgets/app_bar/appbar_title.dart';
@@ -8,8 +11,6 @@ import 'package:flutter_vision/flutter_vision.dart';
 import 'package:camera/camera.dart';
 import 'package:cached_network_image/cached_network_image.dart'; // For displaying network images
 import 'package:shimmer/shimmer.dart';
-import 'dart:io';
-import 'dart:math';
 
 class BuildScreen extends StatefulWidget {
   final String setNum;
@@ -32,10 +33,14 @@ class _BuildScreenState extends State<BuildScreen> {
   FlutterVision vision = FlutterVision();
   Map<String, Color> _classColors = {};
   String setName = '';
+  String generatedSet = '';
   String? _toggledPartNum;
-
+  late WebViewController _webViewController;
 
   UserDatabaseHelper _databaseHelper = UserDatabaseHelper();
+  DatabaseHelper _dbHelper = DatabaseHelper();
+
+  bool useWebView = false;
 
   double _iouThreshold = 0.5;
   double _confThreshold = 0.5;
@@ -60,9 +65,65 @@ class _BuildScreenState extends State<BuildScreen> {
   void initState() {
     super.initState();
     _loadSettings();
-    _fetchSetName();
-    _fetchParts();
-    _fetchInstructionImages();
+    _checkSetExists();
+  }
+
+  Future<String> fetchGeneratedSet(String setNum) async {
+    final db = await _databaseHelper.database;
+
+    // Query to fetch the set_name and ldr_model from the captures table
+    final result = await db.rawQuery(
+        'SELECT set_num, ldr_model FROM generatedSets WHERE set_num = ?', [setNum]);
+
+    if (result.isNotEmpty) {
+      final ldrModel = result.first['ldr_model'] as String;
+      final setName = result.first['set_num'] as String;
+
+      // Set the setName in your state
+      setState(() {
+        this.setName = setName;
+      });
+
+      // Return the ldr_model to initialize the WebView or other logic
+      return ldrModel;
+    } else {
+      throw Exception('Set not found in captures table');
+    }
+  }
+
+  Future<void> _checkSetExists() async {
+    final db = await _dbHelper.database;
+    final results = await db.rawQuery('SELECT name FROM setInfo WHERE set_num = ?', [widget.setNum]);
+
+    if (results.isEmpty) {
+      try {
+        generatedSet = await fetchGeneratedSet(widget.setNum);
+        setState(() {
+          useWebView = true; // Use WebView instead of images
+        });
+        _initializeWebView(generatedSet);
+      } catch (e) {
+        print('Error: $e');
+      }
+    } else {
+      _fetchSetName();
+      _fetchParts();
+      _fetchInstructionImages();
+    }
+  }
+
+  Future<void> _initializeWebView(String generatedSet) async {
+    print(generatedSet);
+    _webViewController = WebViewController()
+      ..loadRequest(Uri.parse('http://127.0.0.1:8080/instruction.html'))
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (url) {
+            _webViewController.runJavaScript('updateLDrawCode(`$generatedSet`);');
+          },
+        ),
+      );
   }
 
   Future<void> _initializeCamera() async {
@@ -195,7 +256,6 @@ class _BuildScreenState extends State<BuildScreen> {
         });
       }
     }
-
   }
 
   @override
@@ -319,98 +379,112 @@ class _BuildScreenState extends State<BuildScreen> {
                 ],
               ),
             ),
-            // Instruction Images
-            Expanded(
-              child: PageView.builder(
-                itemCount: instructionImages.length,
-                itemBuilder: (context, index) {
-                  return CachedNetworkImage(
-                    imageUrl: instructionImages[index],
-                    // Add Shimmer for loading effect
-                    placeholder: (context, url) => Shimmer.fromColors(
-                      baseColor: Colors.grey[300]!,
-                      highlightColor: Colors.grey[100]!,
-                      child: Container(
-                        color: Colors.grey[300], // Placeholder color for shimmer
-                        width: double.infinity,
-                        height: double.infinity,
+
+            // WebView or Content depending on the state of useWebView
+            if (useWebView)
+              Expanded(
+                child: Container(
+                  height: double.infinity, // Ensures the WebView takes up all available height
+                  child: ClipRRect(
+                    child: WebViewWidget(controller: _webViewController),
+                  ),
+                ),
+              )
+            else ...[
+              // Instruction Images
+              Expanded(
+                child: PageView.builder(
+                  itemCount: instructionImages.length,
+                  itemBuilder: (context, index) {
+                    return CachedNetworkImage(
+                      imageUrl: instructionImages[index],
+                      // Add Shimmer for loading effect
+                      placeholder: (context, url) => Shimmer.fromColors(
+                        baseColor: Colors.grey[300]!,
+                        highlightColor: Colors.grey[100]!,
+                        child: Container(
+                          color: Colors.grey[300], // Placeholder color for shimmer
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
                       ),
+                      errorWidget: (context, url, error) => Icon(Icons.error),
+                      fit: BoxFit.contain, // Adjust this as per your design
+                    );
+                  },
+                ),
+              ),
+
+              // Parts List
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return Container(
+                    height: min(120.v, constraints.maxHeight), // Adjust height dynamically
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: partsList.length,
+                      itemBuilder: (context, index) {
+                        final part = partsList[index];
+                        final partNum = part['part_num'];
+
+                        // Check if this part is recognized in object detection
+                        final isDetected = _recognitionsList?.any((r) => r["tag"] == partNum) ?? false;
+                        final isToggled = _toggledPartNum == partNum;
+
+                        return GestureDetector(
+                          onTap: () {
+                            // Toggle the part filter
+                            setState(() {
+                              _toggledPartNum = _toggledPartNum == partNum ? null : partNum;
+                            });
+                          },
+                          child: Container(
+                            width: 100.h,
+                            margin: EdgeInsets.all(8.0),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10.0),
+                              border: Border.all(
+                                color: isToggled
+                                    ? _classColors[partNum] ?? theme.colorScheme.primary // Use class color or fallback
+                                    : isDetected ? _classColors[partNum] ?? Colors.grey : Colors.transparent,
+                                width: isToggled || isDetected ? 4.0 : 1.0,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                // Clip the image to prevent it from overlapping the border
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(46.0), // Slightly less than the container's borderRadius
+                                  child: CachedNetworkImage(
+                                    imageUrl: part['img_url'],
+                                    placeholder: (context, url) => CircularProgressIndicator(),
+                                    errorWidget: (context, url, error) => Icon(Icons.error),
+                                    width: 80.h,
+                                    height: 80.h,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                // Text with part number and quantity
+                                Container(
+                                  margin: EdgeInsets.only(top: 8.0),
+                                  child: Text(
+                                    "${partNum} x${part['quantity']}",
+                                    style: TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 16.0,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    errorWidget: (context, url, error) => Icon(Icons.error),
-                    fit: BoxFit.contain, // Adjust this as per your design
                   );
                 },
               ),
-            ),
-            // Parts List
-            LayoutBuilder(
-              builder: (context, constraints) {
-                return Container(
-                  height: min(120.v, constraints.maxHeight), // Adjust height dynamically
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: partsList.length,
-                    itemBuilder: (context, index) {
-                      final part = partsList[index];
-                      final partNum = part['part_num'];
-
-                      // Check if this part is recognized in object detection
-                      final isDetected = _recognitionsList?.any((r) => r["tag"] == partNum) ?? false;
-                      final isToggled = _toggledPartNum == partNum;
-
-                      return GestureDetector(
-                        onTap: () {
-                          // Toggle the part filter
-                          setState(() {
-                            _toggledPartNum = _toggledPartNum == partNum ? null : partNum;
-                          });
-                        },
-                        child: Container(
-                          width: 100.h,
-                          margin: EdgeInsets.all(8.0),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10.0),
-                            border: Border.all(
-                              color: isToggled
-                                  ? _classColors[partNum] ?? theme.colorScheme.primary // Use class color or fallback
-                                  : isDetected ? _classColors[partNum] ?? Colors.grey : Colors.transparent,
-                              width: isToggled || isDetected ? 4.0 : 1.0,
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              // Clip the image to prevent it from overlapping the border
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(46.0), // Slightly less than the container's borderRadius
-                                child: CachedNetworkImage(
-                                  imageUrl: part['img_url'],
-                                  placeholder: (context, url) => CircularProgressIndicator(),
-                                  errorWidget: (context, url, error) => Icon(Icons.error),
-                                  width: 80.h,
-                                  height: 80.h,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              // Text with part number and quantity
-                              Container(
-                                margin: EdgeInsets.only(top: 8.0),
-                                child: Text(
-                                  "${partNum} x${part['quantity']}",
-                                  style: TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 16.0,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
+            ]
           ],
         ),
       ),

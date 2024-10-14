@@ -1,3 +1,7 @@
+import 'dart:math';
+import 'dart:typed_data';
+import 'dart:ui';
+
 import 'package:emmet/widgets/app_bar/custom_app_bar.dart';
 import 'package:emmet/widgets/app_bar/appbar_leading_image.dart';
 import 'package:emmet/widgets/app_bar/appbar_title.dart';
@@ -6,7 +10,12 @@ import 'package:emmet/widgets/custom_outlined_button.dart';
 import 'package:emmet/widgets/custom_elevated_button.dart';
 import 'package:flutter/material.dart';
 import 'package:emmet/core/app_export.dart';
+import 'package:flutter/rendering.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'lego_brick_code_generator.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 
 class ExploreScreen extends StatefulWidget {
   final List<String> recognizedTags;
@@ -20,11 +29,47 @@ class ExploreScreen extends StatefulWidget {
 class _ExploreScreenState extends State<ExploreScreen> {
   List<Map<String, dynamic>> _sets = [];
   bool _isLoading = true; // Track loading state
+  bool _isWebViewLoaded = false; // Track if WebView is loaded
+  bool _isWebViewLoading = true; // Track WebView loading state
+  int _currentIndex = 0; // To keep track of the selected tab
+
+  String _modelName = ""; // Add this to store the model name
+  String ldrawCodeFile = "";
+  String setNum = "";
+  String? geminiApiKey;
+
+  late PageController _pageController;
+  late WebViewController _webViewController; // Controller for the WebView
+
+  late LegoBrickCodeGenerator _legoBrickCodeGenerator; // Controller instance
+
+  GlobalKey _webViewKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController();
     _loadSets();
+    _getGeminiKey(); // Call to fetch the key
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _getGeminiKey() async {
+    final settings = await UserDatabaseHelper().getSettings();
+    setState(() {
+      geminiApiKey = settings['geminiApiKey'];
+    });
+
+    // Initialize WebView controller after fetching the key
+    if (geminiApiKey != null && geminiApiKey!.isNotEmpty) {
+      _initializeWebViewController();
+      _legoBrickCodeGenerator = LegoBrickCodeGenerator(geminiApiKey!);
+    }
   }
 
   Future<void> _loadSets() async {
@@ -35,6 +80,126 @@ class _ExploreScreenState extends State<ExploreScreen> {
       _sets = sets;
       _isLoading = false; // Stop loading when data is fetched
     });
+  }
+
+  void _initializeWebViewController() {
+    // Ensure WebViewController is initialized only once
+    if (!_isWebViewLoaded) {
+      _webViewController = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setNavigationDelegate(NavigationDelegate(
+          onPageFinished: (String url) {
+            setState(() {
+              _isWebViewLoading = false; // Stop loading when the page finishes loading
+              _isWebViewLoaded = true; // Mark WebView as loaded
+            });
+          },
+        ));
+    }
+  }
+
+// Helper method to handle code generation or modification
+  Future<void> _handleLegoCode({
+    required Future<Map<String, dynamic>> Function() codeOperation,
+  }) async {
+    if (_isWebViewLoaded) {
+      // Skip regeneration if already loaded
+      return;
+    }
+
+    setState(() {
+      _isWebViewLoading = true; // Start WebView loading
+    });
+
+    try {
+      // Await the response from the passed code operation (generate or modify)
+      final response = await codeOperation();
+
+      if (response['success']) {
+        // Handle success response
+        String generatedCode = response['generatedCode'];
+        print('Generated Code: $generatedCode');
+
+        // Define regex to capture everything between the first '0' and the last '.dat' before the closing backticks.
+        final ldrRegex = RegExp(r"0(?:\s+.*\n)*(?:1\s+.*?\.(?:DAT|dat)\n?)*", dotAll: true);
+        final ldrMatch = ldrRegex.firstMatch(generatedCode);
+
+        if (ldrMatch != null) {
+          ldrawCodeFile = ldrMatch.group(0)?.trim() ?? '';
+          ldrawCodeFile = ldrawCodeFile.replaceAll('```', '');
+          print('LDraw Code File: $ldrawCodeFile');
+          // Do something with ldrawCodeFile, like passing it to the WebView
+        } else {
+          throw Exception("LDraw code file not found in the generated code.");
+        }
+
+        final nameRegex = RegExp(r"^0\s+Name:\s*(.*?)\s*$", multiLine: true);
+        final nameMatch = nameRegex.firstMatch(generatedCode);
+        String modelName = nameMatch?.group(1)?.trim() ?? '';
+
+        // Remove the .ldr extension and convert to title case
+        modelName = modelName.replaceAll('.ldr', '').split(' ').map((word) {
+          return word.isNotEmpty ? word[0].toUpperCase() + word.substring(1).toLowerCase() : '';
+        }).join(' ');
+
+        setState(() {
+          _modelName = modelName;
+          setNum = 'SET${Random().nextInt(10000).toString().padLeft(5, '0')}';
+        });
+
+        // Load the WebView only if it hasn't been loaded
+        if (!_isWebViewLoaded) {
+          _webViewController
+            ..loadRequest(Uri.parse('http://127.0.0.1:8080/preview.html'))
+            ..setJavaScriptMode(JavaScriptMode.unrestricted)
+            ..setNavigationDelegate(
+              NavigationDelegate(
+                onPageFinished: (url) {
+                  // This is called when the page is fully loaded
+                  _webViewController.runJavaScript('updateLDrawCode(`$ldrawCodeFile`);');
+                },
+              ),
+            );
+        }
+      } else {
+        // Handle failure response
+        throw Exception(response['error']);
+      }
+    } catch (error) {
+      print("Error generating/updating LEGO code: $error");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error generating/updating LEGO code: $error")),
+      );
+    } finally {
+      setState(() {
+        _isWebViewLoading = false; // Stop WebView loading regardless of success or failure
+      });
+    }
+  }
+
+// Modify LEGO code method using the helper function
+  Future<void> _modifyLegoCode(String inputText) async {
+    await _handleLegoCode(
+      codeOperation: () => _legoBrickCodeGenerator.modifyCode(inputText, ldrawCodeFile),
+    );
+  }
+
+// Generate LEGO code method using the helper function
+  Future<void> _generateOrUpdateLegoCode() async {
+    await _handleLegoCode(
+      codeOperation: () => _legoBrickCodeGenerator.generateCode(widget.recognizedTags),
+    );
+  }
+
+  Future<void> _generateLegoCode() async {
+    // Only generate code if the WebView has not been loaded yet
+    if (!_isWebViewLoaded) {
+      await _generateOrUpdateLegoCode();
+    }
+  }
+
+  Future<void> _regenerateLegoCode() async {
+    await _generateOrUpdateLegoCode();
   }
 
   Widget _buildShimmerCard() {
@@ -52,48 +217,242 @@ class _ExploreScreenState extends State<ExploreScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        resizeToAvoidBottomInset: false,
-        appBar: _buildAppBar(context),
-        body: SizedBox(
-          width: SizeUtils.width,
-          child: SingleChildScrollView(
-            padding: EdgeInsets.only(top: 25.v),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 20.h),
-              child: _isLoading
-                  ? Column(
-                children: List.generate(
-                  5, // Number of shimmer cards to display while loading
-                      (index) => Padding(
-                    padding: EdgeInsets.only(bottom: 16.h),
-                    child: _buildShimmerCard(),
-                  ),
+  Widget _buildOfficialLEGOSetCard() {
+    return _isLoading
+        ? Column(
+      children: List.generate(
+        5, // Number of shimmer cards to display while loading
+            (index) => Padding(
+          padding: EdgeInsets.only(top: 20.h, bottom: 20.h),
+          child: _buildShimmerCard(),
+        ),
+      ),
+    )
+        : _sets.isEmpty
+        ? Center(
+      child: Text(
+        "No LEGO sets found for the detected bricks.",
+        style: Theme.of(context).textTheme.bodyMedium,
+        textAlign: TextAlign.center,
+      ),
+    )
+        : SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: 20.h),
+      child: Column(
+        children: _sets
+            .map((set) => Padding(
+          padding: EdgeInsets.only(top: 20.h, bottom: 20.h),
+          child: _buildCard(context, set),
+        ))
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildGenerateSection() {
+    return Stack(
+      children: [
+        // WebView or Shimmer loading widget
+        _isWebViewLoading
+            ? Shimmer.fromColors(
+          baseColor: Colors.grey[300]!,
+          highlightColor: Colors.grey[100]!,
+          child: Container(
+            height: MediaQuery.of(context).size.height, // Height of the WebView area
+            width: double.infinity,
+            color: Colors.grey[300],
+          ),
+        )
+            : RepaintBoundary( // Wrap the WebView in a RepaintBoundary
+          key: _webViewKey, // Assign the GlobalKey here
+          child: ClipRRect(
+            child: WebViewWidget(controller: _webViewController),
+          ),
+        ),
+
+        // Floating model name box with loading text or actual model name
+        Positioned(
+          top: 40.0, // Adjust this value for vertical positioning
+          left: 20.0, // Center horizontally by calculating offset
+          right: 20.0,
+          child: Container(
+            padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+            decoration: BoxDecoration(
+              color: Color.fromRGBO(238, 147, 34, 1),
+              borderRadius: BorderRadius.circular(16.0),
+            ),
+            child: Center(
+              child: Text(
+                _isWebViewLoading ? "Building Your LEGO Model, Please Hold..." : _modelName,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14.0,
+                  fontWeight: FontWeight.bold,
                 ),
-              )
-                  : _sets.isEmpty
-                  ? Center(
-                child: Text(
-                  "No LEGO sets found for the detected bricks.",
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  textAlign: TextAlign.center,
-                ),
-              )
-                  : Column(
-                children: _sets
-                    .map((set) => Padding(
-                  padding: EdgeInsets.only(bottom: 16.h), // Space between cards
-                  child: _buildCard(context, set),
-                ))
-                    .toList(),
               ),
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Scaffold(
+        resizeToAvoidBottomInset: true,
+        appBar: _buildAppBar(context),
+        body: PageView(
+          controller: _pageController,
+          onPageChanged: (index) {
+            if (index == 1 && (geminiApiKey == null || geminiApiKey!.isEmpty)) {
+              // Do not switch to "Generate" tab if geminiApiKey is null
+              _pageController.jumpToPage(0); // Force back to the LEGO sets page
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Please set your Gemini API Key to use this feature.'),
+                ),
+              );
+            } else {
+              setState(() {
+                _currentIndex = index;
+                if (index == 1) {
+                  _generateLegoCode(); // Generate code when switching to the "Generate" tab
+                }
+              });
+            }
+          },
+          physics: NeverScrollableScrollPhysics(),
+          children: [
+            _buildOfficialLEGOSetCard(),
+            _buildGenerateSection(),
+          ],
+        ),
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) {
+            if (index == 1 && (geminiApiKey == null || geminiApiKey!.isEmpty)) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Generate tab is disabled because the Gemini API key is missing.'),
+                ),
+              );
+            } else {
+              setState(() {
+                _currentIndex = index;
+                _pageController.jumpToPage(index);
+              });
+            }
+          },
+          items: [
+            BottomNavigationBarItem(
+              icon: FaIcon(FontAwesomeIcons.cube),
+              label: 'LEGO Sets',
+            ),
+            BottomNavigationBarItem(
+              icon: FaIcon(
+                geminiApiKey == null
+                    ? FontAwesomeIcons.wandMagicSparkles // Disabled icon
+                    : FontAwesomeIcons.wandMagicSparkles,
+                color: geminiApiKey == null ? Colors.grey : null, // Greyed-out icon if disabled
+              ),
+              label: 'Generate',
+            ),
+          ],
+        ),
+        floatingActionButton: _currentIndex == 1 && geminiApiKey != null
+            ? SpeedDial(
+          backgroundColor: Color.fromRGBO(216, 63, 49, 1),
+          foregroundColor: Colors.white,
+          icon: Icons.menu,
+          activeIcon: Icons.close,
+          spacing: 10,
+          children: [
+            SpeedDialChild(
+              child: FaIcon(FontAwesomeIcons.arrowsRotate),
+              label: 'Regenerate',
+              onTap: _regenerateLegoCode,
+            ),
+            SpeedDialChild(
+              child: FaIcon(FontAwesomeIcons.pencil),
+              label: 'Modify',
+              onTap: _showModifyDialog,
+            ),
+            SpeedDialChild(
+              child: FaIcon(FontAwesomeIcons.cube),
+              label: 'Save',
+              onTap: _saveGeneratedSet,
+            ),
+            SpeedDialChild(
+              child: FaIcon(FontAwesomeIcons.solidCirclePlay),
+              label: 'Build',
+              onTap: () {
+                buildGeneratedSet(context, setNum);
+              },
+            ),
+          ],
+        )
+            : null, // Hide FAB if on the LEGO Sets tab or geminiApiKey is null
       ),
+    );
+  }
+
+  void _showModifyDialog() {
+    TextEditingController inputController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Modify LEGO Code'),
+          content: TextField(
+            controller: inputController,
+            decoration: InputDecoration(
+              hintText: 'Enter modification details',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Dismiss the dialog
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                String inputText = inputController.text.trim();
+                if (inputText.isNotEmpty) {
+                  _modifyLegoCode(inputText);
+                  Navigator.of(context).pop(); // Dismiss the dialog after modifying
+                }
+              },
+              child: Text('Confirm'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> buildGeneratedSet(BuildContext context, String setNum) async {
+    await _saveGeneratedSet();
+    Navigator.pushNamed(context, AppRoutes.buildScreen, arguments: setNum);
+  }
+
+  Future<void> _saveGeneratedSet() async {
+    // Capture the image from the WebView
+    RenderRepaintBoundary boundary = _webViewKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+    var image = await boundary.toImage(pixelRatio: 3.0);
+    ByteData? byteData = await image.toByteData(format: ImageByteFormat.png);
+    Uint8List imgData = byteData!.buffer.asUint8List();
+
+    // Save to the database
+    await UserDatabaseHelper().saveGeneratedSet(setNum, imgData, _modelName, ldrawCodeFile);
+
+    // Provide feedback to the user
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Set saved successfully: $setNum")),
     );
   }
 
@@ -264,4 +623,5 @@ class _ExploreScreenState extends State<ExploreScreen> {
       },
     );
   }
+
 }

@@ -3,6 +3,7 @@ import 'package:emmet/widgets/custom_drop_down.dart';
 import 'package:emmet/core/app_export.dart';
 import 'package:emmet/widgets/bottom_navigation_bar.dart';
 import 'package:flutter/services.dart';
+import 'geminiValidate.dart';
 
 class SettingsScreen extends StatefulWidget {
   SettingsScreen({Key? key}) : super(key: key);
@@ -19,6 +20,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   double classThreshold = 0.5;
   String cameraResolution = "Medium";
 
+  // State variables for GEMINI API key
+  bool isApiKeyEditable = false;
+  bool showApiKey = false;
+  String? geminiApiKey;
+
   @override
   void initState() {
     super.initState();
@@ -33,6 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       confThreshold = settings['confThreshold'] ?? 0.5;
       classThreshold = settings['classThreshold'] ?? 0.5;
       cameraResolution = settings['cameraResolution'] ?? "Medium";
+      geminiApiKey = settings['geminiApiKey']; // Load GEMINI API Key
     });
   }
 
@@ -46,9 +53,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+  Future<void> _updateGemini() async {
+    await UserDatabaseHelper().updateSettings({
+      'geminiApiKey': geminiApiKey,
+    });
+  }
+
   // Exit the app
   void _exitApp() {
-    // This will close the app
     SystemNavigator.pop();
   }
 
@@ -69,8 +81,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             TextButton(
               child: Text("Exit"),
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-                _exitApp(); // Call the method to exit the app
+                Navigator.of(context).pop();
+                _exitApp();
               },
             ),
           ],
@@ -107,100 +119,117 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     SizedBox(height: 18.v),
 
-                    // IOU Threshold Slider
+                    // GEMINI API Key Section
                     Row(
                       children: [
-                        Text("IOU Threshold", style: CustomTextStyles.bodySmallOnPrimaryContainer),
+                        Text("GEMINI API Key", style: CustomTextStyles.bodySmallOnPrimaryContainer),
                         SizedBox(width: 8),
                         Tooltip(
-                          message: "Intersection over Union (IOU) threshold controls the overlap required between predicted and actual boxes.",
+                          message: "Enter your GEMINI API key.",
                           child: Icon(Icons.info_outline, color: Colors.grey, size: 20),
+                        ),
+                        Spacer(),
+                        IconButton(
+                          icon: Icon(
+                            isApiKeyEditable ? Icons.lock_open : Icons.lock,
+                            color: isApiKeyEditable ? Colors.green : Colors.red,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              isApiKeyEditable = !isApiKeyEditable;
+                            });
+                          },
                         ),
                       ],
                     ),
-                    Slider(
-                      value: iouThreshold,
-                      min: 0.0,
-                      max: 1.0,
+                    TextField(
+                      enabled: isApiKeyEditable,
+                      obscureText: !showApiKey, // Toggle to show/hide the key
                       onChanged: (value) {
-                        setState(() {
-                          iouThreshold = value;
-                        });
-                        _updateSettings(); // Save when value changes
+                        geminiApiKey = value;
                       },
+                      decoration: InputDecoration(
+                        hintText: "Enter GEMINI API Key",
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            showApiKey ? Icons.visibility : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              showApiKey = !showApiKey;
+                            });
+                          },
+                        ),
+                      ),
+                      controller: TextEditingController(text: geminiApiKey),
                     ),
-                    SizedBox(height: 10.v),
+
+                    SizedBox(height: 10.v), // Add some space
+
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (geminiApiKey != null && geminiApiKey!.isNotEmpty) {
+                          final validationResult = await geminiApiValidate(geminiApiKey!).apiValidate();
+                          if (validationResult['success']) {
+                            // The API key is valid
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("API Key is valid!")),
+                            );
+                            // Proceed to update settings
+                            await _updateGemini();
+                          } else {
+                            // The API key is invalid
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Invalid API Key: ${validationResult['error']}")),
+                            );
+                          }
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Please enter a valid API Key")),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0), // Add padding
+                        foregroundColor: Colors.white, // Set foreground color to white
+                      ),
+                      child: Text("Update API key"),
+                    ),
+
+                    SizedBox(height: 20.v),
+
+                    // IOU Threshold Slider
+                    _buildSlider("IOU Threshold", "Intersection over Union (IOU) threshold controls the overlap required between predicted and actual boxes.", iouThreshold, (value) {
+                      setState(() {
+                        iouThreshold = value;
+                      });
+                      _updateSettings();
+                    }),
 
                     // Confidence Threshold Slider
-                    Row(
-                      children: [
-                        Text("Confidence Threshold", style: CustomTextStyles.bodySmallOnPrimaryContainer),
-                        SizedBox(width: 8),
-                        Tooltip(
-                          message: "Confidence threshold sets the minimum confidence level for predictions to be considered.",
-                          child: Icon(Icons.info_outline, color: Colors.grey, size: 20),
-                        ),
-                      ],
-                    ),
-                    Slider(
-                      value: confThreshold,
-                      min: 0.0,
-                      max: 1.0,
-                      onChanged: (value) {
-                        setState(() {
-                          confThreshold = value;
-                        });
-                        _updateSettings();
-                      },
-                    ),
-                    SizedBox(height: 10.v),
+                    _buildSlider("Confidence Threshold", "Confidence threshold sets the minimum confidence level for predictions to be considered.", confThreshold, (value) {
+                      setState(() {
+                        confThreshold = value;
+                      });
+                      _updateSettings();
+                    }),
 
                     // Class Threshold Slider
-                    Row(
-                      children: [
-                        Text("Class Threshold", style: CustomTextStyles.bodySmallOnPrimaryContainer),
-                        SizedBox(width: 8),
-                        Tooltip(
-                          message: "Class threshold determines how confident the model must be when classifying objects.",
-                          child: Icon(Icons.info_outline, color: Colors.grey ,size: 20),
-                        ),
-                      ],
-                    ),
-                    Slider(
-                      value: classThreshold,
-                      min: 0.0,
-                      max: 1.0,
-                      onChanged: (value) {
-                        setState(() {
-                          classThreshold = value;
-                        });
-                        _updateSettings();
-                      },
-                    ),
+                    _buildSlider("Class Threshold", "Class threshold determines how confident the model must be when classifying objects.", classThreshold, (value) {
+                      setState(() {
+                        classThreshold = value;
+                      });
+                      _updateSettings();
+                    }),
                     SizedBox(height: 13.v),
 
                     // Camera Resolution Dropdown
-                    Row(
-                      children: [
-                        Text("Camera Resolution", style: CustomTextStyles.bodySmallOnPrimaryContainer),
-                        SizedBox(width: 8),
-                        Tooltip(
-                          message: "Select the resolution for the camera feed in the app.",
-                          child: Icon(Icons.info_outline, color: Colors.grey, size: 20),
-                        ),
-                      ],
-                    ),
-                    CustomDropDown(
-                      width: 90.h,
-                      hintText: cameraResolution,
-                      items: dropdownItemList,
-                      onChanged: (value) {
-                        setState(() {
-                          cameraResolution = value;
-                        });
-                        _updateSettings();
-                      },
-                    ),
+                    _buildDropdown("Camera Resolution", "Select the resolution for the camera feed in the app.", cameraResolution, dropdownItemList, (value) {
+                      setState(() {
+                        cameraResolution = value;
+                      });
+                      _updateSettings();
+                    }),
 
                     SizedBox(height: 30.v),
 
@@ -212,21 +241,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           "Exit App",
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.white, // Set the text color to white
+                            color: Colors.white,
                           ),
                         ),
                         style: TextButton.styleFrom(
-                          backgroundColor: Colors.red, // Set the button color
+                          backgroundColor: Colors.red,
                           padding: EdgeInsets.symmetric(horizontal: 50, vertical: 20),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(50.0), // Set the border radius
+                            borderRadius: BorderRadius.circular(50.0),
                           ),
                         ),
                       ),
                     ),
-
                     SizedBox(height: 5.v),
-
                   ],
                 ),
               ),
@@ -244,5 +271,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
-}
 
+  // Reusable widget for sliders
+  Widget _buildSlider(String label, String tooltip, double value, ValueChanged<double> onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(label, style: CustomTextStyles.bodySmallOnPrimaryContainer),
+            SizedBox(width: 8),
+            Tooltip(
+              message: tooltip,
+              child: Icon(Icons.info_outline, color: Colors.grey, size: 20),
+            ),
+          ],
+        ),
+        Slider(
+          value: value,
+          min: 0.0,
+          max: 1.0,
+          onChanged: onChanged,
+        ),
+        SizedBox(height: 10.v),
+      ],
+    );
+  }
+
+  // Reusable widget for dropdown
+  Widget _buildDropdown(String label, String tooltip, String currentValue, List<String> items, ValueChanged<String> onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(label, style: CustomTextStyles.bodySmallOnPrimaryContainer),
+            SizedBox(width: 8),
+            Tooltip(
+              message: tooltip,
+              child: Icon(Icons.info_outline, color: Colors.grey, size: 20),
+            ),
+          ],
+        ),
+        CustomDropDown(
+          width: 90.h,
+          hintText: currentValue,
+          items: items,
+          onChanged: onChanged,
+        ),
+        SizedBox(height: 13.v),
+      ],
+    );
+  }
+}

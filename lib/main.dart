@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'core/app_export.dart';
 
 var globalMessengerKey = GlobalKey<ScaffoldMessengerState>();
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -11,6 +11,9 @@ void main() {
 
   ///Please update theme as per your need if required.
   ThemeHelper().changeTheme('primary');
+
+  await startServer(); // Start the local server
+
   runApp(MyApp());
 }
 
