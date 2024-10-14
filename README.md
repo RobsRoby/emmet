@@ -1,8 +1,7 @@
 # EMMET: Point. Explore. Build.
 
 **A Mobile Application for LEGO® Education Using Rebrickable and YOLOv5 Object Detection Model**
-
-![EMMET Logo](https://github.com/RobsRoby/emmet/blob/main/assets/images/img_logo.png)
+<img src="https://github.com/RobsRoby/emmet/blob/main/assets/images/img_logo.png" alt="logo" width="200">
 
 ## Overview
 
