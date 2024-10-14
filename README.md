@@ -1,59 +1,49 @@
+# EMMET: Point. Explore. Build.
 
-# emmet
-### Table of contents
-- [System requirements](#system-requirements)
-- [Figma design guidelines for better UI accuracy](#figma-design-guideline-for-better-accuracy)
-- [Check the UI of the entire app](#app-navigations)
-- [Application structure](#project-structure)
-- [How to format your code?](#how-you-can-do-code-formatting)
-- [How you can improve code readability?](#how-you-can-improve-the-readability-of-code)
-- [Libraries and tools used](#libraries-and-tools-used)
-- [Support](#support)
+**A Mobile Application for LEGO® Education Using Rebrickable and YOLOv5 Object Detection Model**
 
-### System requirements
+![EMMET Logo](https://github.com/RobsRoby/emmet/blob/main/assets/images/img_logo.png)
 
-Dart SDK Version 2.18.0 or greater.
-Flutter SDK Version 3.3.0 or greater.
+## Overview
 
-### Figma design guidelines for better UI accuracy
+**EMMET** is an innovative mobile application designed to enhance the educational experience with LEGO® blocks. By utilizing the **Rebrickable API** and the **YOLOv5 Object Detection Model**, EMMET allows users to identify LEGO® pieces in real-time through their device’s camera. This app provides an interactive and fun learning experience for users, helping them identify, catalog, and learn more about various LEGO® elements.
 
-Read our guidelines to increase the accuracy of design-to-code conversion by optimizing Figma designs.
-https://docs.dhiwise.com/docs/Designguidelines/intro
+This project showcases the integration of AI and computer vision techniques into a mobile application, offering a powerful tool for both education and LEGO® enthusiasts.
 
-### Check the UI of the entire app
+## Features
 
-Check the UI of all the app screens from a single place by setting up the 'initialRoute'  to AppNavigation in the AppRoutes.dart file.
+- **Real-Time Object Detection**: Identify LEGO® parts using the YOLOv5 Object Detection Model directly through your camera.
+- **Rebrickable Integration**: Fetch detailed LEGO® part information using the Rebrickable API.
+- **Catalog and Learn**: Organize and catalog identified LEGO® elements to enhance your learning.
+- **Engaging and Educational**: Developed with educational purposes in mind, helping users learn about LEGO® while having fun.
 
-### Application structure
-After successful build, your application structure should look like this:
-                    
-```
-.
-├── android                         - It contains files required to run the application on an Android platform.
-├── assets                          - It contains all images and fonts of your application.
-├── ios                             - It contains files required to run the application on an iOS platform.
-├── lib                             - Most important folder in the application, used to write most of the Dart code..
-    ├── main.dart                   - Starting point of the application
-    ├── core
-    │   ├── app_export.dart         - It contains commonly used file imports
-    │   ├── constants               - It contains static constant class file
-    │   └── utils                   - It contains common files and utilities of the application
-    ├── presentation                - It contains widgets of the screens
-    ├── routes                      - It contains all the routes of the application
-    └── theme                       - It contains app theme and decoration classes
-    └── widgets                     - It contains all custom widget classes
-```
-### How to format your code?
+## APK Download
 
-- if your code is not formatted then run following command in your terminal to format code
-  ```
-  dart format .
-  ```
+You can download the latest APK from [here](https://github.com/RobsRoby/emmet/releases/download/apk/emmet.apk).
 
-### How you can improve code readability?
+## YOLOv5 Model Evaluations
 
-Resolve the errors and warnings that are shown in the application.
+EMMET uses the YOLOv5 model for real-time object detection. Below is the performance evaluation of various YOLOv5 variants tested in Tensor/TFLite-FP16 with **Patience 50**:
 
-### Support
+|  Model  |  IOU | mAP@0.5 | mAP@0.5:0.95 | Precision | Recall |  FPS  | Epochs Stopped |
+|:-------:|:----:|:-------:|:------------:|:---------:|:------:|:-----:|:--------------:|
+| yolov5n | 0.96 |   0.04  |     0.04     |    0.10   |  0.04  | 84.70 |       188      |
+| yolov5s | 0.97 |   0.14  |     0.12     |    0.27   |  0.10  | 44.60 |       199      |
+| yolov5m | 0.97 |   0.07  |     0.06     |    0.20   |  0.05  | 19.90 |       199      |
+| yolov5l | 0.97 |   0.09  |     0.07     |    0.22   |  0.06  | 11.47 |       199      |
+| yolov5x | 0.97 |   0.08  |     0.07     |    0.22   |  0.05  |  6.73 |       199      |
 
-If you have any problems or questions, go to our Discord channel, where we will help you as quickly as possible: https://discord.com/invite/rFMnCG5MZ7
+## Technologies Used
+
+- **Flutter** for cross-platform mobile development.
+- **YOLOv5** for real-time object detection.
+- **Rebrickable API** for LEGO® parts data.
+- **TensorFlow Lite** for optimized performance on mobile devices.
+
+## How to Install
+
+1. Download the APK from the [release page](https://github.com/RobsRoby/emmet/releases/download/apk/emmet.apk).
+2. Install the APK on your Android device.
+3. Open the app and start identifying LEGO® elements!
+
+---
