@@ -23,6 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // State variables for GEMINI API key
   bool isApiKeyEditable = false;
   bool showApiKey = false;
+  String? _geminiApiKey;
   String? geminiApiKey;
 
   @override
@@ -39,7 +40,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       confThreshold = settings['confThreshold'] ?? 0.5;
       classThreshold = settings['classThreshold'] ?? 0.5;
       cameraResolution = settings['cameraResolution'] ?? "Medium";
-      geminiApiKey = settings['geminiApiKey']; // Load GEMINI API Key
+      geminiApiKey = settings['GeminiApiKey'] ?? null;
     });
   }
 
@@ -50,12 +51,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       'confThreshold': confThreshold,
       'classThreshold': classThreshold,
       'cameraResolution': cameraResolution,
-    });
-  }
-
-  Future<void> _updateGemini() async {
-    await UserDatabaseHelper().updateSettings({
-      'geminiApiKey': geminiApiKey,
+      'GeminiApiKey': _geminiApiKey,
     });
   }
 
@@ -142,59 +138,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ],
                     ),
-                    TextField(
-                      enabled: isApiKeyEditable,
-                      obscureText: !showApiKey, // Toggle to show/hide the key
-                      onChanged: (value) {
-                        geminiApiKey = value;
-                      },
-                      decoration: InputDecoration(
-                        hintText: "Enter GEMINI API Key",
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            showApiKey ? Icons.visibility : Icons.visibility_off,
+                    if (isApiKeyEditable) ... [
+                      TextField(
+                        enabled: isApiKeyEditable,
+                        obscureText: !showApiKey, // Toggle to show/hide the key
+                        onChanged: (value) {
+                          geminiApiKey = value;
+                        },
+                        decoration: InputDecoration(
+                          hintText: "Enter GEMINI API Key",
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              showApiKey ? Icons.visibility : Icons.visibility_off,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                showApiKey = !showApiKey;
+                              });
+                            },
                           ),
-                          onPressed: () {
-                            setState(() {
-                              showApiKey = !showApiKey;
-                            });
-                          },
                         ),
+                        controller: TextEditingController(text: geminiApiKey),
+                        style: TextStyle(fontSize: 16),
                       ),
-                      controller: TextEditingController(text: geminiApiKey),
-                    ),
 
-                    SizedBox(height: 10.v), // Add some space
+                      // Show the Update button only when API key is editable
+                      SizedBox(height: 10.v), // Add some space
+                      ElevatedButton(
+                        onPressed: () async {
+                          if (geminiApiKey != null && geminiApiKey!.isNotEmpty) {
+                            final validationResult = await geminiApiValidate(geminiApiKey!).apiValidate();
+                            if (validationResult['success']) {
+                              // Proceed to update settings
+                              _geminiApiKey = geminiApiKey;
+                              _updateSettings();
 
-                    ElevatedButton(
-                      onPressed: () async {
-                        if (geminiApiKey != null && geminiApiKey!.isNotEmpty) {
-                          final validationResult = await geminiApiValidate(geminiApiKey!).apiValidate();
-                          if (validationResult['success']) {
-                            // The API key is valid
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text("API Key is valid!")),
-                            );
-                            // Proceed to update settings
-                            await _updateGemini();
+                              // The API key is valid
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text("API Key is saved!")),
+                              );
+                            } else {
+                              // The API key is invalid
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text("Invalid API Key: ${validationResult['error']}")),
+                              );
+                            }
                           } else {
-                            // The API key is invalid
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text("Invalid API Key: ${validationResult['error']}")),
+                              SnackBar(content: Text("Please enter a valid API Key")),
                             );
                           }
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Please enter a valid API Key")),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0), // Add padding
-                        foregroundColor: Colors.white, // Set foreground color to white
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0), // Add padding
+                          foregroundColor: Colors.white, // Set foreground color to white
+                        ),
+                        child: Text("Update API key"),
                       ),
-                      child: Text("Update API key"),
-                    ),
+                    ],
 
                     SizedBox(height: 20.v),
 

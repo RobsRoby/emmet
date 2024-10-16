@@ -1,3 +1,4 @@
+import 'package:emmet/presentation/home_screen/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:emmet/core/app_export.dart';
 
@@ -70,8 +71,10 @@ class _BottomNavigationBarWidgetState extends State<BottomNavigationBarWidget> {
 
     return GestureDetector(
       onTap: () {
-        widget.onTap(index);
-        _onTapNavItem(context, index);
+        if (!isActive) {
+          widget.onTap(index);
+          _onTapNavItem(context, index);
+        }
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -84,16 +87,29 @@ class _BottomNavigationBarWidgetState extends State<BottomNavigationBarWidget> {
               border: Border.all(color: isActive ? Color.fromRGBO(33, 156, 144, 1) : Colors.transparent),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: CustomImageView(
-              imagePath: isActive ? imagePathFilled : imagePathOutlined,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 1.0, end: isActive ? 1.2 : 1.0),
+              duration: Duration(milliseconds: 300),
+              builder: (context, scale, child) {
+                return Transform.scale(
+                  scale: scale,
+                  child: CustomImageView(
+                    imagePath: isActive ? imagePathFilled : imagePathOutlined,
+                  ),
+                );
+              },
             ),
           ),
-          if (showLabel) // Conditionally show label
-            Padding(
-              padding: EdgeInsets.only(top: 5.v),
-              child: Text(
-                label,
-                style: theme.textTheme.bodySmall,
+          if (showLabel)
+            AnimatedOpacity(
+              opacity: isActive ? 1.0 : 0.0,
+              duration: Duration(milliseconds: 300),
+              child: Padding(
+                padding: EdgeInsets.only(top: 5.v),
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodySmall,
+                ),
               ),
             ),
         ],
@@ -102,17 +118,44 @@ class _BottomNavigationBarWidgetState extends State<BottomNavigationBarWidget> {
   }
 
   void _onTapNavItem(BuildContext context, int index) {
+    if (index == widget.currentIndex) return; // No need to animate to the current screen.
+
+    String routeName;
     switch (index) {
       case 0:
-        Navigator.pushReplacementNamed(context, AppRoutes.homeScreen);
+        routeName = AppRoutes.homeScreen;
         break;
       case 1:
-        Navigator.pushReplacementNamed(context, AppRoutes.capturesScreen);
+        routeName = AppRoutes.capturesScreen;
         break;
       case 2:
-        Navigator.pushReplacementNamed(context, AppRoutes.settingsScreen);
+        routeName = AppRoutes.settingsScreen;
         break;
+      default:
+        routeName = AppRoutes.homeScreen; // Default fallback.
     }
+
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) {
+          // Retrieve the WidgetBuilder from routes or fallback to HomeScreen.
+          final WidgetBuilder? builder = AppRoutes.routes[routeName];
+          return builder != null ? builder(context) : HomeScreen();
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          var begin = 0.0;
+          var end = 1.0;
+          var curve = Curves.easeInOut;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          return FadeTransition(
+            opacity: animation.drive(tween),
+            child: child,
+          );
+        },
+        transitionDuration: Duration(milliseconds: 300),
+      ),
+    );
   }
 
 }
@@ -142,6 +185,3 @@ class WaveClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
-
-
-

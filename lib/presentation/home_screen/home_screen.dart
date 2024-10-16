@@ -38,7 +38,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
@@ -82,6 +81,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
     );
   }
+
 
   Widget _buildDetectButton(BuildContext context) {
     return SizedBox(

@@ -25,7 +25,7 @@ class ImageConstant {
 
   // Home images
   static String imgELogo = '$imagePath/img_e_logo.png';
-  static String imgLegoButton = '$imagePath/lego_button.png';
+  static String imgLegoButton = '$imagePath/emmet-detect.gif';
 
   // Camera images
   static String imgCamera = '$imagePath/img_camera.png';

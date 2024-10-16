@@ -45,12 +45,13 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   GlobalKey _webViewKey = GlobalKey();
 
+  bool _hasShownMissingApiKeyMessage = false;
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
     _loadSets();
-    _getGeminiKey(); // Call to fetch the key
+    _getGeminiKey();
   }
 
   @override
@@ -62,7 +63,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   Future<void> _getGeminiKey() async {
     final settings = await UserDatabaseHelper().getSettings();
     setState(() {
-      geminiApiKey = settings['geminiApiKey'];
+      geminiApiKey = settings['GeminiApiKey'];
     });
 
     // Initialize WebView controller after fetching the key
@@ -309,11 +310,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
             if (index == 1 && (geminiApiKey == null || geminiApiKey!.isEmpty)) {
               // Do not switch to "Generate" tab if geminiApiKey is null
               _pageController.jumpToPage(0); // Force back to the LEGO sets page
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Please set your Gemini API Key to use this feature.'),
-                ),
-              );
+              if (!_hasShownMissingApiKeyMessage) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Generate tab is disabled because the Gemini API key is missing.'),
+                  ),
+                );
+                _hasShownMissingApiKeyMessage = true; // Set the flag to true
+              }
             } else {
               setState(() {
                 _currentIndex = index;
@@ -333,11 +337,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
           currentIndex: _currentIndex,
           onTap: (index) {
             if (index == 1 && (geminiApiKey == null || geminiApiKey!.isEmpty)) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Generate tab is disabled because the Gemini API key is missing.'),
-                ),
-              );
+              if (!_hasShownMissingApiKeyMessage) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Generate tab is disabled because the Gemini API key is missing.'),
+                  ),
+                );
+                _hasShownMissingApiKeyMessage = true; // Set the flag to true
+              }
             } else {
               setState(() {
                 _currentIndex = index;
@@ -352,10 +359,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
             ),
             BottomNavigationBarItem(
               icon: FaIcon(
-                geminiApiKey == null
-                    ? FontAwesomeIcons.wandMagicSparkles // Disabled icon
-                    : FontAwesomeIcons.wandMagicSparkles,
-                color: geminiApiKey == null ? Colors.grey : null, // Greyed-out icon if disabled
+                FontAwesomeIcons.wandMagicSparkles,
+                color: _currentIndex == 1 ? Colors.red : null, // Disable color if current index is 1
               ),
               label: 'Generate',
             ),
@@ -393,7 +398,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
             ),
           ],
         )
-            : null, // Hide FAB if on the LEGO Sets tab or geminiApiKey is null
+            : null,
       ),
     );
   }
@@ -496,9 +501,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
           width: 24.adaptSize,
         ),
       ),
-      onPressed: () {
+      onPressed: _currentIndex == 0 ? () {
         onTapSave(context, setNum, imgUrl); // Pass the imgUrl here
-      },
+      } : null, // Disable if not in the current tab
     );
   }
 
@@ -516,9 +521,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
           width: 24.adaptSize,
         ),
       ),
-      onPressed: () {
+      onPressed: _currentIndex == 0 ? () {
         onTapBuild(context, setNum);
-      },
+      } : null, // Disable if not in the current tab
     );
   }
 
@@ -557,7 +562,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    _buildSave(context, set['set_num'], set['img_url']), // Pass img_url here
+                    _buildSave(context, set['set_num'], set['img_url']),
+                    SizedBox(width: 10), // Add some spacing
                     _buildBuild(context, set['set_num']),
                   ],
                 ),
