@@ -163,9 +163,9 @@ class _BuildScreenState extends State<BuildScreen> {
     int numThreads = (availableThreads / 2).floor(); // Use half of the available threads
 
     await vision.loadYoloModel(
-      labels: GetModel.labelsPath,
-      modelPath: GetModel.modelPath,
-      modelVersion: GetModel.modelVersion,
+      labels: GetBrickModel.labelsPath,
+      modelPath: GetBrickModel.modelPath,
+      modelVersion: GetBrickModel.modelVersion,
       quantization: false,
       numThreads: numThreads,
       useGpu: true,
