@@ -24,6 +24,7 @@ class ExploreScreen extends StatefulWidget {
 
   @override
   _ExploreScreenState createState() => _ExploreScreenState();
+
 }
 
 class _ExploreScreenState extends State<ExploreScreen> {
@@ -40,12 +41,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   late PageController _pageController;
   late WebViewController _webViewController; // Controller for the WebView
-
   late LegoBrickCodeGenerator _legoBrickCodeGenerator; // Controller instance
 
   GlobalKey _webViewKey = GlobalKey();
-
   bool _hasShownMissingApiKeyMessage = false;
+
   @override
   void initState() {
     super.initState();
@@ -99,7 +99,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
     }
   }
 
-// Helper method to handle code generation or modification
+  // Helper method to handle code generation or modification
   Future<void> _handleLegoCode({
     required Future<Map<String, dynamic>> Function() codeOperation,
   }) async {
@@ -129,7 +129,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
           ldrawCodeFile = ldrMatch.group(0)?.trim() ?? '';
           ldrawCodeFile = ldrawCodeFile.replaceAll('```', '');
           print('LDraw Code File: $ldrawCodeFile');
-          // Do something with ldrawCodeFile, like passing it to the WebView
         } else {
           throw Exception("LDraw code file not found in the generated code.");
         }
@@ -178,14 +177,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
     }
   }
 
-// Modify LEGO code method using the helper function
+  // Modify LEGO code method using the helper function
   Future<void> _modifyLegoCode(String inputText) async {
     await _handleLegoCode(
       codeOperation: () => _legoBrickCodeGenerator.modifyCode(inputText, ldrawCodeFile),
     );
   }
 
-// Generate LEGO code method using the helper function
+  // Generate LEGO code method using the helper function
   Future<void> _generateOrUpdateLegoCode() async {
     await _handleLegoCode(
       codeOperation: () => _legoBrickCodeGenerator.generateCode(widget.recognizedTags),
@@ -308,7 +307,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
           controller: _pageController,
           onPageChanged: (index) {
             if (index == 1 && (geminiApiKey == null || geminiApiKey!.isEmpty)) {
-              // Do not switch to "Generate" tab if geminiApiKey is null
               _pageController.jumpToPage(0); // Force back to the LEGO sets page
               if (!_hasShownMissingApiKeyMessage) {
                 ScaffoldMessenger.of(context).showSnackBar(

@@ -18,24 +18,13 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> checkCameraPermission() async {
-    // Check if camera permission is granted
     var status = await Permission.camera.status;
+    await startServer();
     if (status.isGranted) {
-      // If permission is granted, navigate to home screen
-      Timer(Duration(seconds: 3), () {
-        navigateToHome();
-      });
+      Navigator.pushReplacementNamed(context, AppRoutes.homeScreen);
     } else {
-      // If permission is not granted, navigate to permission screen
-      Timer(Duration(seconds: 3), () {
-        Navigator.pushReplacementNamed(context, AppRoutes.permissionScreen);
-      });
+      Navigator.pushReplacementNamed(context, AppRoutes.permissionScreen);
     }
-  }
-
-  void navigateToHome() {
-    // Navigate to home screen
-    Navigator.pushReplacementNamed(context, AppRoutes.homeScreen);
   }
 
   @override
@@ -71,4 +60,3 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 }
-

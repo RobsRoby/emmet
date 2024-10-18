@@ -96,8 +96,8 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _loadModel() async {
-    int numThreads = Platform.numberOfProcessors;
-
+    int availableThreads = Platform.numberOfProcessors;
+    int numThreads = (availableThreads / 2).floor(); // Use half of the available threads
     await vision.loadYoloModel(
       labels: GetModel.labelsPath,
       modelPath: GetModel.modelPath,
@@ -127,6 +127,7 @@ class _CameraScreenState extends State<CameraScreen> {
         _recognitionsList = result;
         _detectedClassCount = result.length;
       });
+
     } finally {
       isDetecting = false;
     }
@@ -178,14 +179,14 @@ class _CameraScreenState extends State<CameraScreen> {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.all(Radius.circular(10.0)),
-            border: Border.all(color: boxColor, width: 2.0), // Use the randomized color
+            border: Border.all(color: boxColor, width: 1.0), // Use the randomized color
           ),
           child: Text(
             "$tag ${(confidence * 100).toStringAsFixed(0)}%",
             style: TextStyle(
               background: Paint()..color = boxColor, // Match text background with box color
               color: Colors.black,
-              fontSize: 18.0,
+              fontSize: 13.0,
             ),
           ),
         ),
@@ -218,10 +219,12 @@ class _CameraScreenState extends State<CameraScreen> {
       _initializeControllerFuture = _cameraController.initialize().then((_) {
         if (!mounted) return;
         setState(() {});
+
         _cameraController.startImageStream((CameraImage image) {
           _cameraImage = image;
           _runModel();
         });
+
       });
       setState(() {});
     }
@@ -243,7 +246,10 @@ class _CameraScreenState extends State<CameraScreen> {
               return Stack(
                 children: [
                   Positioned.fill(
-                    child: CameraPreview(_cameraController),
+                    child: AspectRatio(
+                      aspectRatio: _cameraController.value.aspectRatio, // Match aspect ratio
+                      child: CameraPreview(_cameraController),
+                    ),
                   ),
                   ..._displayBoxesAroundRecognizedObjects(MediaQuery.of(context).size),
                   Container(
@@ -256,8 +262,8 @@ class _CameraScreenState extends State<CameraScreen> {
                         Spacer(),
                         CustomImageView(
                           imagePath: _detectedClassCount > 0
-                              ? ImageConstant.legoIcon // Use legoIcon when detectedClassCount > 0
-                              : ImageConstant.imgTipsIcon, // Use the default icon otherwise
+                              ? ImageConstant.legoIcon
+                              : ImageConstant.imgTipsIcon,
                           height: 60.adaptSize,
                           width: 60.adaptSize,
                         ),
@@ -289,7 +295,7 @@ class _CameraScreenState extends State<CameraScreen> {
                                 vertical: 10.v,
                               ),
                               decoration: BoxDecoration(
-                                color: _detectedClassCount > 0 ? theme.colorScheme.primary : Colors.grey, // Gray background when disabled
+                                color: _detectedClassCount > 0 ? theme.colorScheme.primary : Colors.grey,
                                 borderRadius: BorderRadiusStyle.roundedBorder23,
                               ),
                               child: Column(

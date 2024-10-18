@@ -159,7 +159,8 @@ class _BuildScreenState extends State<BuildScreen> {
   }
 
   Future<void> _loadModel() async {
-    int numThreads = Platform.numberOfProcessors;
+    int availableThreads = Platform.numberOfProcessors;
+    int numThreads = (availableThreads / 2).floor(); // Use half of the available threads
 
     await vision.loadYoloModel(
       labels: GetModel.labelsPath,
@@ -343,19 +344,12 @@ class _BuildScreenState extends State<BuildScreen> {
                     // ignore: unnecessary_null_comparison
                     child: _initializeControllerFuture == null
                         ? Center(child: CircularProgressIndicator())
-                        : FutureBuilder<void>(
-                      future: _initializeControllerFuture,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.done) {
-                          return CameraPreview(_cameraController);
-                        } else {
-                          return Center(child: CircularProgressIndicator());
-                        }
-                      },
-                    ),
+                        : AspectRatio(
+                          aspectRatio: _cameraController.value.aspectRatio, // Match aspect ratio
+                          child: CameraPreview(_cameraController),
+                        ),
                   ),
                   ..._displayBoxesAroundRecognizedObjects(MediaQuery.of(context).size),
-
                   // Text overlay when a part is toggled
                   if (_toggledPartNum != null)
                     Positioned(

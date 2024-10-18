@@ -9,10 +9,7 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
   ]);
 
-  ///Please update theme as per your need if required.
   ThemeHelper().changeTheme('primary');
-
-  await startServer(); // Start the local server
 
   runApp(MyApp());
 }
