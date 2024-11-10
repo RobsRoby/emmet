@@ -22,12 +22,10 @@ class _BottomNavigationBarWidgetState extends State<BottomNavigationBarWidget> {
     bool isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
     double navItemSize = isLandscape ? 50.adaptSize : 50.adaptSize; // Adjust size for landscape
 
-    return ClipPath(
-      clipper: WaveClipper(),
-      child: Container(
+    return Container(
         color: Color.fromRGBO(255, 255, 182, 1),
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: isLandscape ? 200.h: 50.h, vertical: isLandscape ? 15.v: 26.v),
+          padding: EdgeInsets.symmetric(horizontal: isLandscape ? 200.h: 23.h, vertical: isLandscape ? 10.v: 10.v),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -51,18 +49,35 @@ class _BottomNavigationBarWidgetState extends State<BottomNavigationBarWidget> {
               ),
               _buildNavItem(
                 context,
+                ImageConstant.imgCreativeOutlined,
+                ImageConstant.imgCreativeFilled,
+                "Creative Mode",
+                2,
+                navItemSize,
+                !isLandscape, // Show label only in portrait
+              ),
+              _buildNavItem(
+                context,
+                ImageConstant.imgMinifigureOutlined,
+                ImageConstant.imgMinifigureFilled,
+                "Minifigure Creator",
+                3,
+                navItemSize,
+                !isLandscape, // Show label only in portrait
+              ),
+              _buildNavItem(
+                context,
                 ImageConstant.imgSettingsOutlined,
                 ImageConstant.imgSettingsFilled,
                 "Settings",
-                2,
+                4,
                 navItemSize,
                 !isLandscape, // Show label only in portrait
               ),
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildNavItem(
@@ -129,8 +144,15 @@ class _BottomNavigationBarWidgetState extends State<BottomNavigationBarWidget> {
         routeName = AppRoutes.capturesScreen;
         break;
       case 2:
+        routeName = AppRoutes.creativeScreen;
+        break;
+      case 3:
+        routeName = AppRoutes.minifigureScreen;
+        break;
+      case 4:
         routeName = AppRoutes.settingsScreen;
         break;
+
       default:
         routeName = AppRoutes.homeScreen; // Default fallback.
     }
@@ -160,28 +182,3 @@ class _BottomNavigationBarWidgetState extends State<BottomNavigationBarWidget> {
 
 }
 
-class WaveClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    var path = Path();
-    path.lineTo(0, 0);
-    var firstControlPoint = Offset(size.width / 4, 0);
-    var firstEndPoint = Offset(size.width / 2, 10);
-    var secondControlPoint = Offset(size.width * 3 / 4, 20);
-    var secondEndPoint = Offset(size.width, 10);
-
-    path.quadraticBezierTo(firstControlPoint.dx, firstControlPoint.dy,
-        firstEndPoint.dx, firstEndPoint.dy);
-    path.quadraticBezierTo(secondControlPoint.dx, secondControlPoint.dy,
-        secondEndPoint.dx, secondEndPoint.dy);
-    path.lineTo(size.width, 60);
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.close();
-
-    return path;
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
-}

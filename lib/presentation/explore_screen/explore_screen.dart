@@ -150,7 +150,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         // Load the WebView only if it hasn't been loaded
         if (!_isWebViewLoaded) {
           _webViewController
-            ..loadRequest(Uri.parse('http://127.0.0.1:8080/preview.html'))
+            ..loadRequest(Uri.parse('http://127.0.0.1:8080/buildinginstructions/preview.html'))
             ..setJavaScriptMode(JavaScriptMode.unrestricted)
             ..setNavigationDelegate(
               NavigationDelegate(

@@ -13,7 +13,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  int currentIndex = 2;
+  int currentIndex = 4;
   List<String> dropdownItemList = ["Low", "Medium", "High"];
   double iouThreshold = 0.5;
   double confThreshold = 0.5;
@@ -39,7 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       iouThreshold = settings['iouThreshold'] ?? 0.5;
       confThreshold = settings['confThreshold'] ?? 0.5;
       classThreshold = settings['classThreshold'] ?? 0.5;
-      cameraResolution = settings['cameraResolution'] ?? "Medium";
+      cameraResolution = titleCase(settings['cameraResolution']) ?? "Medium";
       geminiApiKey = settings['GeminiApiKey'] ?? null;
     });
   }
@@ -50,7 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       'iouThreshold': iouThreshold,
       'confThreshold': confThreshold,
       'classThreshold': classThreshold,
-      'cameraResolution': cameraResolution,
+      'cameraResolution': cameraResolution.toLowerCase(),
       'GeminiApiKey': _geminiApiKey,
     });
   }
@@ -95,7 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           physics: BouncingScrollPhysics(),
           child: Column(
             children: [
-              SizedBox(height: 47.v),
+              SizedBox(height: 35.v),
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 49.h),
                 child: Column(
@@ -227,12 +227,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     // Camera Resolution Dropdown
                     _buildDropdown("Camera Resolution", "Select the resolution for the camera feed in the app.", cameraResolution, dropdownItemList, (value) {
                       setState(() {
-                        cameraResolution = value;
+                        cameraResolution = titleCase(value);
                       });
                       _updateSettings();
                     }),
 
-                    SizedBox(height: 30.v),
+                    SizedBox(height: 15.v),
 
                     // Exit App Button
                     Center(
@@ -247,13 +247,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         style: TextButton.styleFrom(
                           backgroundColor: Colors.red,
-                          padding: EdgeInsets.symmetric(horizontal: 50, vertical: 20),
+                          padding: EdgeInsets.symmetric(horizontal: 30, vertical: 10),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(50.0),
                           ),
                         ),
                       ),
                     ),
+
                     SizedBox(height: 5.v),
                   ],
                 ),
@@ -299,6 +300,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  String titleCase(String text) {
+    return text
+        .split(' ')
+        .map((word) =>
+    word.isNotEmpty ? word[0].toUpperCase() + word.substring(1).toLowerCase() : '')
+        .join(' ');
+  }
+
   // Reusable widget for dropdown
   Widget _buildDropdown(String label, String tooltip, String currentValue, List<String> items, ValueChanged<String> onChanged) {
     return Column(
@@ -306,7 +315,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       children: [
         Row(
           children: [
-            Text(label, style: CustomTextStyles.bodySmallOnPrimaryContainer),
+            Text(titleCase(label), style: CustomTextStyles.bodySmallOnPrimaryContainer),  // Apply titleCase here
             SizedBox(width: 8),
             Tooltip(
               message: tooltip,
@@ -324,4 +333,5 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ],
     );
   }
+
 }

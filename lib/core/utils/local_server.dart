@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_static/shelf_static.dart';
 
@@ -9,24 +10,69 @@ Future<void> startServer() async {
   // Get the system's temporary directory
   Directory tempDir = await getTemporaryDirectory();
 
-  // Define the target directory for your assets
-  String targetDir = '${tempDir.path}/buildinginstructions';
-  Directory(targetDir).createSync(recursive: true);
+  // Define target directories for each asset set
+  String brickBuilderDir = '${tempDir.path}/brick_builder';
+  String minifigureMakerDir = '${tempDir.path}/minifigure_maker';
+  String buildingInstructionsDir = '${tempDir.path}/buildinginstructions';
 
-  // Copy all assets from the bundled assets to the temp directory
-  await _copyAssetsToDirectory('assets/buildinginstructions', targetDir);
+  // Create the directories
+  Directory(brickBuilderDir).createSync(recursive: true);
+  Directory(minifigureMakerDir).createSync(recursive: true);
+  Directory(buildingInstructionsDir).createSync(recursive: true);
+
+  // Copy assets for each application
+  await _copyAssetsToDirectory('assets/brick_builder', brickBuilderDir);
+  await _copyAssetsToDirectory('assets/minifigure_maker', minifigureMakerDir);
+  await _copyAssetsToDirectory('assets/buildinginstructions', buildingInstructionsDir);
 
   // Check if files were copied correctly
-  _listFilesInDirectory(targetDir);
+  _listFilesInDirectory(brickBuilderDir);
+  _listFilesInDirectory(minifigureMakerDir);
+  _listFilesInDirectory(buildingInstructionsDir);
 
-  // Now serve the files from the temp directory
-  var handler = createStaticHandler(
-    targetDir,
+  // Create handlers for each application
+  var brickBuilderHandler = createStaticHandler(
+    brickBuilderDir,
     defaultDocument: 'preview.html',
   );
 
-  // Start the HTTPS server
-  var server = await shelf_io.serve(handler, InternetAddress.loopbackIPv4, 8080);
+  var minifigureMakerHandler = createStaticHandler(
+    minifigureMakerDir,
+    defaultDocument: 'preview.html',
+  );
+
+  var buildingInstructionsHandler = createStaticHandler(
+    buildingInstructionsDir,
+    defaultDocument: 'preview.html',
+  );
+
+  // Define a 404 fallback handler for unmatched paths
+  var fallbackHandler = (Request request) => Response.notFound('Page not found');
+
+  // Mount each handler to its respective route and add fallback
+  var cascade = Cascade()
+      .add((Request request) {
+    if (request.url.path.startsWith('brick_builder')) {
+      return brickBuilderHandler(request.change(path: 'brick_builder'));
+    }
+    return fallbackHandler(request); // Ensure non-null response
+  })
+      .add((Request request) {
+    if (request.url.path.startsWith('minifigure_maker')) {
+      return minifigureMakerHandler(request.change(path: 'minifigure_maker'));
+    }
+    return fallbackHandler(request); // Ensure non-null response
+  })
+      .add((Request request) {
+    if (request.url.path.startsWith('buildinginstructions')) {
+      return buildingInstructionsHandler(request.change(path: 'buildinginstructions'));
+    }
+    return fallbackHandler(request); // Ensure non-null response
+  })
+      .handler;
+
+  // Start the server with the cascaded handler
+  var server = await shelf_io.serve(cascade, InternetAddress.loopbackIPv4, 8080);
   print('Serving at http://${server.address.host}:${server.port}');
 }
 
@@ -70,3 +116,4 @@ Future<void> _copyAssetsToDirectory(String assetPath, String targetPath) async {
     print('File created: ${file.path}');
   }
 }
+

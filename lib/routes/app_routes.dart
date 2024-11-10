@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../presentation/creative_screen/creative_screen.dart';
+import '../presentation/minifigure_screen/minifigure_screen.dart';
 import '../presentation/splash_screen/splash_screen.dart';
 import '../presentation/permission_screen/permission_screen.dart';
 import '../presentation/home_screen/home_screen.dart';
@@ -17,6 +19,9 @@ class AppRoutes {
   static const String exploreScreen = '/explore_screen';
   static const String buildScreen = '/build_screen';
   static const String capturesScreen = '/captures_screen';
+  static const String creativeScreen = '/creative_screen';
+  static const String minifigureScreen = '/minifigure_screen';
+
   static const String settingsScreen = '/settings_screen';
 
   static Map<String, WidgetBuilder> routes = {
@@ -25,6 +30,8 @@ class AppRoutes {
     homeScreen: (context) => HomeScreen(),
     cameraScreen: (context) => CameraScreen(),
     capturesScreen: (context) => CapturesScreen(),
+    creativeScreen: (context) => CreativeScreen(),
+    minifigureScreen: (context) => MinifigureScreen(),
     settingsScreen: (context) => SettingsScreen(),
     // Remove buildScreen entry from here, it will be handled by onGenerateRoute
   };

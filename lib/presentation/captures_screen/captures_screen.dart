@@ -181,8 +181,10 @@ class _CapturesScreenState extends State<CapturesScreen> {
                   );
                 }),
               ),
+              SizedBox(height: 30.0),
           ],
         ),
+
         bottomNavigationBar: BottomNavigationBarWidget(
           currentIndex: currentIndex,
           onTap: (index) {

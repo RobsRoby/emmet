@@ -20,6 +20,12 @@ class ImageConstant {
   static String imgCapturesOutlined = '$imagePath/captures-icon-outlined.svg';
   static String imgCapturesFilled = '$imagePath/captures-icon-filled.svg';
 
+  static String imgCreativeOutlined = '$imagePath/creative-icon-outlined.svg';
+  static String imgCreativeFilled = '$imagePath/creative-icon-filled.svg';
+
+  static String imgMinifigureOutlined = '$imagePath/minifigure-icon-outlined.svg';
+  static String imgMinifigureFilled = '$imagePath/minifigure-icon-filled.svg';
+
   static String imgSettingsOutlined = '$imagePath/settings-icon-outlined.svg';
   static String imgSettingsFilled = '$imagePath/settings-icon-filled.svg';
 

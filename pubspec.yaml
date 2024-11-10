@@ -28,6 +28,8 @@ dependencies:
   google_generative_ai: ^0.4.6
   flutter_speed_dial: ^7.0.0
   gif: ^2.3.0
+  screenshot: ^3.0.0
+  file_picker: ^8.1.3
 
 dev_dependencies:
   flutter_test:
@@ -62,6 +64,21 @@ flutter:
     - assets/buildinginstructions/textures/materials/
     - assets/buildinginstructions/unofficial/p/
     - assets/buildinginstructions/unofficial/parts/
+    - assets/brick_builder/
+    - assets/brick_builder/app/
+    - assets/brick_builder/app/actions/
+    - assets/brick_builder/app/components/
+    - assets/brick_builder/app/components/engine/
+    - assets/brick_builder/app/components/engine/core/
+    - assets/brick_builder/app/containers/
+    - assets/brick_builder/app/reducer/
+    - assets/brick_builder/app/selectors/
+    - assets/brick_builder/app/styles/
+    - assets/brick_builder/app/styles/components/
+    - assets/brick_builder/app/styles/containers/
+    - assets/brick_builder/app/utils/
+    - assets/brick_builder/app/utils/threejs/
+    - assets/minifigure_maker/
 
   fonts:
     - family: Lato

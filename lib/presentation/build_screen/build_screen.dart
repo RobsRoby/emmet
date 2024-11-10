@@ -37,6 +37,9 @@ class _BuildScreenState extends State<BuildScreen> {
   String? _toggledPartNum;
   late WebViewController _webViewController;
 
+  PageController _pageController = PageController();
+  int _currentPage = 0;
+
   UserDatabaseHelper _databaseHelper = UserDatabaseHelper();
   DatabaseHelper _dbHelper = DatabaseHelper();
 
@@ -115,12 +118,12 @@ class _BuildScreenState extends State<BuildScreen> {
   Future<void> _initializeWebView(String generatedSet) async {
     print(generatedSet);
     _webViewController = WebViewController()
-      ..loadRequest(Uri.parse('http://127.0.0.1:8080/instruction.html'))
+      ..loadRequest(Uri.parse('http://127.0.0.1:8080/buildinginstructions/instruction.html'))
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (url) {
-            _webViewController.runJavaScript('updateLDrawCode(`$generatedSet`);');
+            _webViewController.runJavaScript('updateLDrawCode($generatedSet);');
           },
         ),
       );
@@ -341,35 +344,14 @@ class _BuildScreenState extends State<BuildScreen> {
                 children: [
                   Positioned.fill(
                     // Camera preview
-                    // ignore: unnecessary_null_comparison
                     child: _initializeControllerFuture == null
                         ? Center(child: CircularProgressIndicator())
                         : AspectRatio(
-                          aspectRatio: _cameraController.value.aspectRatio, // Match aspect ratio
-                          child: CameraPreview(_cameraController),
-                        ),
+                      aspectRatio: _cameraController.value.aspectRatio,
+                      child: CameraPreview(_cameraController),
+                    ),
                   ),
                   ..._displayBoxesAroundRecognizedObjects(MediaQuery.of(context).size),
-                  // Text overlay when a part is toggled
-                  if (_toggledPartNum != null)
-                    Positioned(
-                      top: 20, // Position at the top of the screen
-                      left: 20,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(vertical: 5.0, horizontal: 12.0),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(10.0),
-                        ),
-                        child: Text(
-                          "Now filtering: $_toggledPartNum",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12.0,
-                          ),
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -378,109 +360,168 @@ class _BuildScreenState extends State<BuildScreen> {
             if (useWebView)
               Expanded(
                 child: Container(
-                  height: double.infinity, // Ensures the WebView takes up all available height
+                  height: double.infinity,
                   child: ClipRRect(
                     child: WebViewWidget(controller: _webViewController),
                   ),
                 ),
               )
             else ...[
-              // Instruction Images
+              // Instruction Images Title
+              Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Text(
+                  'Instruction Images',
+                  style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold),
+                ),
+              ),
+              // Instruction Images Carousel
               Expanded(
-                child: PageView.builder(
-                  itemCount: instructionImages.length,
-                  itemBuilder: (context, index) {
-                    return CachedNetworkImage(
-                      imageUrl: instructionImages[index],
-                      // Add Shimmer for loading effect
-                      placeholder: (context, url) => Shimmer.fromColors(
-                        baseColor: Colors.grey[300]!,
-                        highlightColor: Colors.grey[100]!,
-                        child: Container(
-                          color: Colors.grey[300], // Placeholder color for shimmer
-                          width: double.infinity,
-                          height: double.infinity,
-                        ),
+                child: Column(
+                  children: [
+                    // PageView to display images
+                    Expanded(
+                      child: PageView.builder(
+                        controller: _pageController,
+                        itemCount: instructionImages.length,
+                        itemBuilder: (context, index) {
+                          return CachedNetworkImage(
+                            imageUrl: instructionImages[index],
+                            placeholder: (context, url) => Shimmer.fromColors(
+                              baseColor: Colors.grey[300]!,
+                              highlightColor: Colors.grey[100]!,
+                              child: Container(
+                                color: Colors.grey[300],
+                                width: double.infinity,
+                                height: double.infinity,
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Icon(Icons.error),
+                            fit: BoxFit.contain,
+                          );
+                        },
+                        onPageChanged: (index) {
+                          setState(() {
+                            _currentPage = index;
+                          });
+                        },
                       ),
-                      errorWidget: (context, url, error) => Icon(Icons.error),
-                      fit: BoxFit.contain, // Adjust this as per your design
-                    );
-                  },
+                    ),
+                    // Indicator for Carousel
+                    Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Text(
+                        "${_currentPage + 1} / ${instructionImages.length}",
+                        style: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
                 ),
               ),
 
               // Parts List
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  return Container(
-                    height: min(120.v, constraints.maxHeight), // Adjust height dynamically
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: partsList.length,
-                      itemBuilder: (context, index) {
-                        final part = partsList[index];
-                        final partNum = part['part_num'];
+              Container(
+                 decoration: BoxDecoration(
+                   color: Color.fromRGBO(255, 255, 182, 1), // Background color
+                   borderRadius: BorderRadius.circular(10.0), // Optional: To give rounded corners
+                   boxShadow: [
+                     BoxShadow(
+                       color: Colors.black.withOpacity(0.1), // Shadow color
+                       offset: Offset(0, 4), // Shadow position (vertical offset)
+                       blurRadius: 8.0, // Spread of the shadow
+                       spreadRadius: 2.0, // How much the shadow should spread
+                     ),
+                   ],
+                 ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Text(
+                        'Parts List',
+                        style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        return Container(
+                          height: min(100.v, constraints.maxHeight),
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: partsList.length,
+                            itemBuilder: (context, index) {
+                              final part = partsList[index];
+                              final partNum = part['part_num'];
 
-                        // Check if this part is recognized in object detection
-                        final isDetected = _recognitionsList?.any((r) => r["tag"] == partNum) ?? false;
-                        final isToggled = _toggledPartNum == partNum;
+                              // Check if this part is recognized in object detection
+                              final isDetected = _recognitionsList?.any((r) => r["tag"] == partNum) ?? false;
+                              final isToggled = _toggledPartNum == partNum;
 
-                        return GestureDetector(
-                          onTap: () {
-                            // Toggle the part filter
-                            setState(() {
-                              _toggledPartNum = _toggledPartNum == partNum ? null : partNum;
-                            });
-                          },
-                          child: Container(
-                            width: 100.h,
-                            margin: EdgeInsets.all(8.0),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10.0),
-                              border: Border.all(
-                                color: isToggled
-                                    ? _classColors[partNum] ?? theme.colorScheme.primary // Use class color or fallback
-                                    : isDetected ? _classColors[partNum] ?? Colors.grey : Colors.transparent,
-                                width: isToggled || isDetected ? 4.0 : 1.0,
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                // Clip the image to prevent it from overlapping the border
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(46.0), // Slightly less than the container's borderRadius
-                                  child: CachedNetworkImage(
-                                    imageUrl: part['img_url'],
-                                    placeholder: (context, url) => CircularProgressIndicator(),
-                                    errorWidget: (context, url, error) => Icon(Icons.error),
-                                    width: 80.h,
-                                    height: 80.h,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                                // Text with part number and quantity
-                                Container(
-                                  margin: EdgeInsets.only(top: 8.0),
-                                  child: Text(
-                                    "${partNum} x${part['quantity']}",
-                                    style: TextStyle(
-                                      color: Colors.black,
-                                      fontSize: 16.0,
+                              return GestureDetector(
+                                onTap: () {
+                                  // Toggle the part filter
+                                  setState(() {
+                                    _toggledPartNum = _toggledPartNum == partNum ? null : partNum;
+                                  });
+                                },
+                                child: Container(
+                                  width: 100.h,
+                                  margin: EdgeInsets.all(8.0),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(10.0),
+                                    border: Border.all(
+                                      color: isToggled
+                                          ? _classColors[partNum] ?? theme.colorScheme.primary
+                                          : isDetected ? _classColors[partNum] ?? Colors.grey : Colors.transparent,
+                                      width: isToggled || isDetected ? 4.0 : 1.0,
                                     ),
                                   ),
+                                  child: Column(
+                                    children: [
+                                      // Clip the image to prevent it from overlapping the border
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(46.0),
+                                        child: CachedNetworkImage(
+                                          imageUrl: part['img_url'],
+                                          placeholder: (context, url) => CircularProgressIndicator(),
+                                          errorWidget: (context, url, error) => Icon(Icons.error),
+                                          width: 60.h,
+                                          height: 60.h,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      // Text with part number and quantity
+                                      Container(
+                                        margin: EdgeInsets.only(top: 8.0),
+                                        child: Text(
+                                          "${partNum} x${part['quantity']}",
+                                          style: TextStyle(
+                                            color: Colors.black,
+                                            fontSize: 16.0,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ],
-                            ),
+                              );
+                            },
                           ),
                         );
                       },
                     ),
-                  );
-                },
+                  ]
+                )
               ),
+
+
+
+
             ]
           ],
         ),
+
       ),
     );
   }
@@ -504,9 +545,75 @@ class _BuildScreenState extends State<BuildScreen> {
           text: "Set ${widget.setNum} - $setName",
         ),
       ]),
+      actions: [
+        IconButton(
+          icon: Icon(Icons.help_outline), // Help icon
+          onPressed: () {
+            _showHelpDialog(context);
+          },
+        ),
+      ],
       styleType: Style.bgShadow,
     );
   }
+
+  void _showHelpDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Help'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHelpSection(
+                  title: 'Live Object Detection',
+                  description:
+                  'This section uses the device\'s camera to detect LEGO parts in real-time. Recognized parts are highlighted with bounding boxes, and their names and confidence scores are displayed.',
+                ),
+                SizedBox(height: 10),
+                _buildHelpSection(
+                  title: 'WebView / Instruction Images',
+                  description:
+                  'Here, you can view the instructions for building your set. If a model has been generated, the instructions will be shown in a WebView. Otherwise, instruction images will be displayed in a carousel.',
+                ),
+                SizedBox(height: 10),
+                _buildHelpSection(
+                  title: 'Parts List',
+                  description:
+                  'This section lists the parts for the selected LEGO set. You can see the part number and quantity. If a part is detected by the camera, it will be highlighted in the list.',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: Text('Close'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildHelpSection({required String title, required String description}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        SizedBox(height: 5),
+        Text(description),
+      ],
+    );
+  }
+
 
   onTapArrowLeft(BuildContext context) {
     Navigator.pop(context);

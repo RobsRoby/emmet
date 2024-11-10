@@ -35,7 +35,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
               SizedBox(
                 width: 226.h,
                 child: Text(
-                  "To detect LEGO bricks and provide you with an optimal experience, we need access to your device's camera.",
+                  "To detect LEGO bricks and save screenshots, we need access to your device's camera and storage.",
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
@@ -43,89 +43,20 @@ class _PermissionScreenState extends State<PermissionScreen> {
                 ),
               ),
               SizedBox(height: 20.v),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 60.h, vertical: 5.v),
-                child: Row(
-                  mainAxisSize: MainAxisSize.max,
-                  children: [
-                    CustomImageView(
-                      imagePath: ImageConstant.cameraIconFilled,
-                      height: 24.adaptSize,
-                      width: 24.adaptSize,
-                      margin: EdgeInsets.only(top: 6.v, bottom: 3.v),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.only(left: 11.h, top: 6.v),
-                      child: Column(
-                        children: [
-                          Text(
-                            "Why we need camera access",
-                            style: CustomTextStyles.bodySmallOnPrimaryContainer,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              permissionItem(
+                iconPath: ImageConstant.cameraIconFilled,
+                title: "Why we need camera access",
+                description: "Allows us to detect LEGO bricks.",
               ),
-              SizedBox(height: 19.v),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 60.h, vertical: 5.v),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.max,
-                  children: [
-                    CustomImageView(
-                      imagePath: ImageConstant.securityIconFilled,
-                      height: 24.adaptSize,
-                      width: 24.adaptSize,
-                      margin: EdgeInsets.only(top: 6.v, bottom: 3.v),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.only(left: 11.h, top: 6.v),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Your privacy matters",
-                            style: CustomTextStyles.bodySmallGray500,
-                          ),
-                          SizedBox(height: 1.v),
-                          Text(
-                            "No images are shared.",
-                            style: CustomTextStyles.bodySmallOnPrimaryContainer,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              permissionItem(
+                iconPath: ImageConstant.securityIconFilled,
+                title: "Your privacy matters",
+                description: "No data is shared without permission.",
               ),
-              SizedBox(height: 19.v),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 60.h, vertical: 5.v),
-                child: Row(
-                  mainAxisSize: MainAxisSize.max,
-                  children: [
-                    CustomImageView(
-                      imagePath: ImageConstant.accessIconFilled,
-                      height: 24.adaptSize,
-                      width: 24.adaptSize,
-                      margin: EdgeInsets.only(top: 6.v, bottom: 3.v),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.only(left: 11.h, top: 6.v),
-                      child: Column(
-                        children: [
-                          Text(
-                            "Grant Access",
-                            style: CustomTextStyles.bodySmallOnPrimaryContainer,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              permissionItem(
+                iconPath: ImageConstant.accessIconFilled,
+                title: "Grant Access",
+                description: "Allows saving screenshots to your device.",
               ),
               SizedBox(height: 29.v),
               CustomElevatedButton(
@@ -147,18 +78,50 @@ class _PermissionScreenState extends State<PermissionScreen> {
     );
   }
 
+  Widget permissionItem({required String iconPath, required String title, required String description}) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 60.h, vertical: 5.v),
+      child: Row(
+        children: [
+          CustomImageView(
+            imagePath: iconPath,
+            height: 24.adaptSize,
+            width: 24.adaptSize,
+            margin: EdgeInsets.only(top: 6.v, bottom: 3.v),
+          ),
+          SizedBox(width: 11.h),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: CustomTextStyles.bodySmallOnPrimaryContainer),
+              SizedBox(height: 1.v),
+              Text(description, style: CustomTextStyles.bodySmallGray500),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> onTapALLOW(BuildContext context) async {
     try {
-      var status = await Permission.camera.request();
-      if (status.isGranted) {
+      // Request camera permission
+      var cameraStatus = await Permission.camera.request();
+      // Request storage permission
+      var storageStatus = await Permission.storage.request();
+
+      if (cameraStatus.isGranted && storageStatus.isGranted) {
+        // Navigate to the home screen if both permissions are granted
         Navigator.pushNamed(context, AppRoutes.homeScreen);
       } else {
+        // If any permission is denied, show a dialog
+        String deniedPermission = cameraStatus.isDenied ? "Camera" : "Storage";
         showDialog(
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
               title: Text("Permission Denied"),
-              content: Text("The system will not continue without camera access."),
+              content: Text("The system will not continue without $deniedPermission access."),
               actions: <Widget>[
                 TextButton(
                   child: Text("OK"),
@@ -172,6 +135,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
         );
       }
     } catch (e) {
+      // Handle any errors in permission request process
       showDialog(
         context: context,
         builder: (BuildContext context) {
@@ -191,6 +155,4 @@ class _PermissionScreenState extends State<PermissionScreen> {
       );
     }
   }
-
 }
-

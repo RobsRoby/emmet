@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:emmet/core/app_export.dart';
 import 'package:emmet/widgets/bottom_navigation_bar.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -13,7 +14,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _animation;
-  int currentIndex = 0; // Added to track the active screen
+  int currentIndex = 0;
 
   @override
   void initState() {
@@ -41,6 +42,26 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
+        appBar: PreferredSize(
+          preferredSize: Size.fromHeight(56.0),
+          child: AppBar(
+            automaticallyImplyLeading: false,
+            actions: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: FloatingActionButton(
+                  mini: true,
+                  onPressed: () => _showOnboardingCarousel(context),
+                  child: Icon(Icons.help_outline),
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  highlightElevation: 0,
+                  tooltip: 'Onboarding Guide',
+                ),
+              ),
+            ],
+          ),
+        ),
         body: SingleChildScrollView(
           child: Container(
             width: double.maxFinite,
@@ -81,7 +102,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
     );
   }
-
 
   Widget _buildDetectButton(BuildContext context) {
     return SizedBox(
@@ -186,6 +206,153 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  void _showOnboardingCarousel(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Disable dismiss on tap outside
+      builder: (context) {
+        return Dialog(
+          insetPadding: EdgeInsets.all(16.0),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.0), // Rounded corners
+          ),
+          child: CarouselOnboarding(),
+        );
+      },
+    );
+  }
+
 }
 
+class CarouselOnboarding extends StatefulWidget {
+  @override
+  _CarouselOnboardingState createState() => _CarouselOnboardingState();
+}
 
+class _CarouselOnboardingState extends State<CarouselOnboarding> {
+  final PageController _pageController = PageController();
+  int _currentIndex = 0;
+
+  final List<Map<String, dynamic>> onboardingPages = [
+    {
+      'title': 'Welcome to EMMET!',
+      'content': 'Point, Explore, Build! Navigate EMMET with ease using this quick guide.',
+      'image': ImageConstant.imgLogo, // Assuming this is not SVG
+    },
+    {
+      'title': 'Home',
+      'content': 'Find the “EMMET” button to start brick detection and explore LEGO set suggestions.',
+      'image': ImageConstant.imgLegoButton, // Assuming this is not SVG
+    },
+    {
+      'title': 'Captures',
+      'content': 'Access all your saved builds in one place. Save or delete any captured set.',
+      'image': ImageConstant.imgCapturesFilled, // SVG Image
+    },
+    {
+      'title': 'Creative Mode',
+      'content': 'Enter Free Build mode by rotating your phone to Landscape. Build freely!',
+      'image': ImageConstant.imgCreativeFilled, // SVG Image
+    },
+    {
+      'title': 'Minifigure Maker',
+      'content': 'Customize minifigures and save your creations for future reference.',
+      'image': ImageConstant.imgMinifigureFilled, // SVG Image
+    },
+    {
+      'title': 'Settings',
+      'content': 'Adjust detection sensitivity and other preferences to personalize your EMMET experience.',
+      'image': ImageConstant.imgSettingsFilled, // SVG Image
+    },
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          height: 350, // Adjusted to fit image and text
+          child: PageView.builder(
+            controller: _pageController,
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            itemCount: onboardingPages.length,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    onboardingPages[index]['image']?.endsWith('.svg') ?? false
+                        ? SvgPicture.asset(
+                      onboardingPages[index]['image'],
+                      height: 80, // Adjust size as needed
+                    )
+                        : Image.asset(
+                      onboardingPages[index]['image'],
+                      height: 80, // Adjust size as needed
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      onboardingPages[index]['title']!,
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      onboardingPages[index]['content']!,
+                      style: TextStyle(fontSize: 16),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            onboardingPages.length,
+                (index) => Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4.0),
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _currentIndex == index ? Color.fromRGBO(33, 156, 144, 1) : Colors.grey,
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text("Skip", style: TextStyle(fontSize: 14)),
+              ),
+              ElevatedButton(
+                onPressed: _currentIndex == onboardingPages.length - 1
+                    ? () => Navigator.of(context).pop()
+                    : () {
+                  _pageController.nextPage(
+                    duration: Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                },
+                child: Text(_currentIndex == onboardingPages.length - 1 ? "Done" : "Next", style: TextStyle(fontSize: 14, color: Colors.white)),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
